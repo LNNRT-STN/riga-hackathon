@@ -1,0 +1,9 @@
+# Local dependencies and secrets
+node_modules/
+.env
+.env.*
+!.env.example
+
+# Impeccable local review/build outputs and platform-specific launcher
+.impeccable/
+.agents/skills/impeccable/scripts/bin/
