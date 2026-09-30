@@ -7,3 +7,10 @@ node_modules/
 # Impeccable local review/build outputs and platform-specific launcher
 .impeccable/
 .agents/skills/impeccable/scripts/bin/
+
+# Build and runtime output
+src/frontend/dist/
+**/__pycache__/
+*.db
+*.db-wal
+*.db-shm
