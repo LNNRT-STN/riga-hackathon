@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>You approve</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+*{box-sizing:border-box}
+a{color:#006B99}a:hover{color:#00567D}
+::selection{background:#EAF6FC;color:#003B71}
+.app{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;color:#17324D;background:#F3F8FA;font-size:16px;line-height:24px;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+.phone{width:390px;height:844px;position:relative;overflow:hidden;display:flex;flex-direction:column}
+.scroll{flex:1;overflow:hidden;padding:8px 16px 24px;display:flex;flex-direction:column;gap:24px}
+h1,h2,h3,p{margin:0}
+.h-page{font-size:24px;line-height:32px;font-weight:600;color:#003B71;letter-spacing:-0.01em}
+.h-sec{font-size:18px;line-height:26px;font-weight:600;color:#003B71}
+.h-card{font-size:16px;line-height:24px;font-weight:600;color:#003B71}
+.muted{color:#526779;font-size:14px;line-height:20px}
+.meta{color:#526779;font-size:12px;line-height:18px}
+.card{background:#fff;border:1px solid #D9E5EC;border-radius:12px;box-shadow:0 2px 8px rgba(0,59,113,.06);padding:16px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.rows>*+*{border-top:1px solid #D9E5EC}
+.btn{display:flex;align-items:center;justify-content:center;min-height:48px;padding:0 20px;border-radius:8px;font-family:inherit;font-size:16px;line-height:24px;font-weight:600;border:1px solid #006B99;cursor:pointer}
+.btn-p{background:#006B99;color:#fff}
+.btn-s{background:#fff;color:#006B99}
+.link{color:#006B99;font-weight:600;font-size:14px;line-height:20px;background:none;border:0;padding:12px 0;font-family:inherit;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.chip{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 14px;border-radius:999px;background:#EAF6FC;color:#003B71;font-size:14px;font-weight:500;border:1px solid transparent}
+.chip-on{background:#003B71;color:#fff}
+.tag{display:inline-flex;align-items:center;gap:6px;font-size:12px;line-height:18px;font-weight:600;color:#006B99}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:12px;line-height:18px;font-weight:600}
+.ok{background:#EAF6EE;color:#167347}
+.warn{background:#FFF5DA;color:#805800}
+.amt{font-weight:600;color:#003B71;white-space:nowrap}
+.ico{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.ico-s{width:18px;height:18px}
+.top{display:flex;align-items:center;gap:8px;padding:12px 16px 8px;background:#F3F8FA}
+.iconbtn{width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:999px;background:none;border:0;color:#003B71;cursor:pointer}
+.nav{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));background:#fff;border-top:1px solid #D9E5EC;padding:6px 0 22px}
+.nav a{display:flex;flex-direction:column;align-items:center;gap:2px;min-height:56px;justify-content:center;font-size:12px;line-height:16px;color:#526779;text-decoration:none}
+.nav a.on{color:#003B71;font-weight:600}
+.nav a.on .dot{width:24px;height:3px;border-radius:2px;background:#00AEEF;margin-top:2px}
+.nav a .dot{width:24px;height:3px;margin-top:2px}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-size:14px;line-height:20px;font-weight:600;color:#17324D}
+.input{min-height:48px;border:1px solid #6C8293;border-radius:8px;background:#fff;padding:0 14px;display:flex;align-items:center;justify-content:space-between;font-size:16px;color:#17324D}
+.assist{background:#EAF6FC;border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.bar{height:8px;border-radius:999px;background:#EAF6FC;overflow:hidden}
+.bar>i{display:block;height:100%;background:#006B99;border-radius:999px}
+.sim{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:8px;background:#FFF5DA;color:#805800;font-size:13px;line-height:18px;font-weight:500}
+</style>
+</helmet>
+<div class="app phone">
+<header class="top"><button class="iconbtn" aria-label="Back"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button><h1 class="h-sec" style="flex:1">Review transfer</h1></header>
+<main class="scroll" style="gap:16px; padding-top:0">
+<div class="sim"><svg class="ico ico-s" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.8 3h10.4a2 2 0 0 0 1.8-3l-5-9V3"/></svg>Demo: this transfer is simulated. No real money moves.</div>
+<div class="card" style="display:flex; flex-direction:column; align-items:center; gap:4px; padding:24px 16px">
+<span class="muted">You move</span>
+<span style="font-size:40px; line-height:48px; font-weight:600; color:#003B71; letter-spacing:-0.02em">€ 150,00</span>
+</div>
+<div class="card rows" style="padding:0 16px">
+<div class="row" style="min-height:60px"><span class="muted">From</span><div style="text-align:right"><div style="font-weight:600; color:#003B71">Savings account</div><div class="meta">BE21 •••• 0877</div></div></div>
+<div class="row" style="min-height:60px"><span class="muted">To</span><div style="text-align:right"><div style="font-weight:600; color:#003B71">Current account</div><div class="meta">BE68 •••• 4211</div></div></div>
+<div class="row" style="min-height:48px"><span class="muted">Date</span><span style="font-weight:600; color:#003B71">Today, 30 Sep 2026</span></div>
+<div class="row" style="min-height:48px"><span class="muted">Fee</span><span style="font-weight:600; color:#003B71">€ 0,00</span></div>
+<div class="row" style="min-height:60px"><span class="muted">Safety buffer</span><div style="text-align:right"><div style="font-weight:600; color:#003B71">€ 2.400 → € 2.250</div><div class="meta">Autopilot offers to top it up after payday</div></div></div>
+</div>
+<label style="display:flex; gap:12px; align-items:flex-start; padding:4px 0; cursor:pointer">
+<span style="width:24px; height:24px; border:1.5px solid #6C8293; border-radius:6px; background:#fff; flex:none; margin-top:2px"></span>
+<span><span style="font-weight:600">Always do this when my balance would dip below zero</span><br><span class="meta">Only between your own accounts · max € 200 a month · stop any time</span></span>
+</label>
+<div style="display:flex; flex-direction:column; gap:8px; margin-top:auto">
+<button class="btn btn-p">Confirm transfer of € 150,00</button>
+<button class="btn btn-s">Cancel</button>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

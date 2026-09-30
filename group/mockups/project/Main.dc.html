@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Set a goal</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+*{box-sizing:border-box}
+a{color:#006B99}a:hover{color:#00567D}
+::selection{background:#EAF6FC;color:#003B71}
+.app{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;color:#17324D;background:#F3F8FA;font-size:16px;line-height:24px;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+.phone{width:390px;height:844px;position:relative;overflow:hidden;display:flex;flex-direction:column}
+.scroll{flex:1;overflow:hidden;padding:8px 16px 24px;display:flex;flex-direction:column;gap:24px}
+h1,h2,h3,p{margin:0}
+.h-page{font-size:24px;line-height:32px;font-weight:600;color:#003B71;letter-spacing:-0.01em}
+.h-sec{font-size:18px;line-height:26px;font-weight:600;color:#003B71}
+.h-card{font-size:16px;line-height:24px;font-weight:600;color:#003B71}
+.muted{color:#526779;font-size:14px;line-height:20px}
+.meta{color:#526779;font-size:12px;line-height:18px}
+.card{background:#fff;border:1px solid #D9E5EC;border-radius:12px;box-shadow:0 2px 8px rgba(0,59,113,.06);padding:16px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.rows>*+*{border-top:1px solid #D9E5EC}
+.btn{display:flex;align-items:center;justify-content:center;min-height:48px;padding:0 20px;border-radius:8px;font-family:inherit;font-size:16px;line-height:24px;font-weight:600;border:1px solid #006B99;cursor:pointer}
+.btn-p{background:#006B99;color:#fff}
+.btn-s{background:#fff;color:#006B99}
+.link{color:#006B99;font-weight:600;font-size:14px;line-height:20px;background:none;border:0;padding:12px 0;font-family:inherit;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.chip{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 14px;border-radius:999px;background:#EAF6FC;color:#003B71;font-size:14px;font-weight:500;border:1px solid transparent}
+.chip-on{background:#003B71;color:#fff}
+.tag{display:inline-flex;align-items:center;gap:6px;font-size:12px;line-height:18px;font-weight:600;color:#006B99}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:12px;line-height:18px;font-weight:600}
+.ok{background:#EAF6EE;color:#167347}
+.warn{background:#FFF5DA;color:#805800}
+.amt{font-weight:600;color:#003B71;white-space:nowrap}
+.ico{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.ico-s{width:18px;height:18px}
+.top{display:flex;align-items:center;gap:8px;padding:12px 16px 8px;background:#F3F8FA}
+.iconbtn{width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:999px;background:none;border:0;color:#003B71;cursor:pointer}
+.nav{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));background:#fff;border-top:1px solid #D9E5EC;padding:6px 0 22px}
+.nav a{display:flex;flex-direction:column;align-items:center;gap:2px;min-height:56px;justify-content:center;font-size:12px;line-height:16px;color:#526779;text-decoration:none}
+.nav a.on{color:#003B71;font-weight:600}
+.nav a.on .dot{width:24px;height:3px;border-radius:2px;background:#00AEEF;margin-top:2px}
+.nav a .dot{width:24px;height:3px;margin-top:2px}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-size:14px;line-height:20px;font-weight:600;color:#17324D}
+.input{min-height:48px;border:1px solid #6C8293;border-radius:8px;background:#fff;padding:0 14px;display:flex;align-items:center;justify-content:space-between;font-size:16px;color:#17324D}
+.assist{background:#EAF6FC;border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.bar{height:8px;border-radius:999px;background:#EAF6FC;overflow:hidden}
+.bar>i{display:block;height:100%;background:#006B99;border-radius:999px}
+.sim{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:8px;background:#FFF5DA;color:#805800;font-size:13px;line-height:18px;font-weight:500}
+</style>
+</helmet>
+<div class="app phone">
+<header class="top"><h1 class="h-page" style="flex:1; padding-left:4px">Autopilot</h1><button class="iconbtn" aria-label="Notifications"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9a6 6 0 1 1 12 0c0 6 2.5 8 2.5 8h-17S6 15 6 9"/><path d="M10 20.5a2 2 0 0 0 4 0"/></svg></button></header>
+<main class="scroll" style="gap:20px">
+<section style="display:flex; flex-direction:column; gap:8px">
+<h2 style="font-size:28px; line-height:34px; font-weight:600; color:#003B71; letter-spacing:-0.02em">Where do you want to fly to?</h2>
+<p class="muted">Give a goal an amount and a date. Autopilot then watches for the moments that matter to it.</p>
+</section>
+<div style="display:flex; flex-wrap:wrap; gap:8px">
+<span class="chip chip-on"><svg class="ico ico-s" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>Safety buffer</span><span class="chip">Holiday</span><span class="chip">A home</span><span class="chip">Studies for a child</span>
+</div>
+<div class="card" style="display:flex; flex-direction:column; gap:14px">
+<div class="field"><label>Goal</label><div class="input">Safety buffer</div></div>
+<div style="display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px">
+<div class="field"><label>Target</label><div class="input"><span>€ 5.000</span></div></div>
+<div class="field"><label>Saved so far</label><div class="input"><span>€ 2.400</span></div></div>
+<div class="field"><label>Each month</label><div class="input"><span>€ 150</span></div></div>
+<div class="field"><label>By</label><div class="input"><span>31 Dec 2027</span><svg class="ico ico-s" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg></div></div>
+</div>
+</div>
+<div class="assist">
+<div class="tag"><svg class="ico ico-s" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2.2 4.8-4.8 2.2 2.2-4.8z"/></svg>Autopilot checks your plan</div>
+<p style="font-size:15px; line-height:22px">At <b>€ 150</b> a month you reach € 5.000 around <b>March 2028</b>. To make December 2027, set aside about <b>€ 175</b> a month.</p>
+<div style="display:flex; gap:8px; flex-wrap:wrap"><button class="chip" style="background:#fff; border-color:#6C8293; cursor:pointer; font-family:inherit">Make it € 175</button><button class="chip" style="background:#fff; border-color:#6C8293; cursor:pointer; font-family:inherit">Keep March 2028</button></div>
+</div>
+<button class="btn btn-p">Save goal</button>
+</main>
+<nav class="nav" aria-label="Main"><a href="#"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg><span>Start</span><span class="dot"></span></a><a href="#"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="14" rx="2"/><path d="M3 10.5h18M8 3.5h8"/></svg><span>My KBC</span><span class="dot"></span></a><a href="#"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg><span>Invest</span><span class="dot"></span></a><a href="#" class="on" aria-current="page"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2.2 4.8-4.8 2.2 2.2-4.8z"/></svg><span>Autopilot</span><span class="dot"></span></a></nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

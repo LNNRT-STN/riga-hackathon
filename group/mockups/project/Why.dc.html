@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Why you see this</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+*{box-sizing:border-box}
+a{color:#006B99}a:hover{color:#00567D}
+::selection{background:#EAF6FC;color:#003B71}
+.app{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;color:#17324D;background:#F3F8FA;font-size:16px;line-height:24px;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+.phone{width:390px;height:844px;position:relative;overflow:hidden;display:flex;flex-direction:column}
+.scroll{flex:1;overflow:hidden;padding:8px 16px 24px;display:flex;flex-direction:column;gap:24px}
+h1,h2,h3,p{margin:0}
+.h-page{font-size:24px;line-height:32px;font-weight:600;color:#003B71;letter-spacing:-0.01em}
+.h-sec{font-size:18px;line-height:26px;font-weight:600;color:#003B71}
+.h-card{font-size:16px;line-height:24px;font-weight:600;color:#003B71}
+.muted{color:#526779;font-size:14px;line-height:20px}
+.meta{color:#526779;font-size:12px;line-height:18px}
+.card{background:#fff;border:1px solid #D9E5EC;border-radius:12px;box-shadow:0 2px 8px rgba(0,59,113,.06);padding:16px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.rows>*+*{border-top:1px solid #D9E5EC}
+.btn{display:flex;align-items:center;justify-content:center;min-height:48px;padding:0 20px;border-radius:8px;font-family:inherit;font-size:16px;line-height:24px;font-weight:600;border:1px solid #006B99;cursor:pointer}
+.btn-p{background:#006B99;color:#fff}
+.btn-s{background:#fff;color:#006B99}
+.link{color:#006B99;font-weight:600;font-size:14px;line-height:20px;background:none;border:0;padding:12px 0;font-family:inherit;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.chip{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 14px;border-radius:999px;background:#EAF6FC;color:#003B71;font-size:14px;font-weight:500;border:1px solid transparent}
+.chip-on{background:#003B71;color:#fff}
+.tag{display:inline-flex;align-items:center;gap:6px;font-size:12px;line-height:18px;font-weight:600;color:#006B99}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:12px;line-height:18px;font-weight:600}
+.ok{background:#EAF6EE;color:#167347}
+.warn{background:#FFF5DA;color:#805800}
+.amt{font-weight:600;color:#003B71;white-space:nowrap}
+.ico{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.ico-s{width:18px;height:18px}
+.top{display:flex;align-items:center;gap:8px;padding:12px 16px 8px;background:#F3F8FA}
+.iconbtn{width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:999px;background:none;border:0;color:#003B71;cursor:pointer}
+.nav{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));background:#fff;border-top:1px solid #D9E5EC;padding:6px 0 22px}
+.nav a{display:flex;flex-direction:column;align-items:center;gap:2px;min-height:56px;justify-content:center;font-size:12px;line-height:16px;color:#526779;text-decoration:none}
+.nav a.on{color:#003B71;font-weight:600}
+.nav a.on .dot{width:24px;height:3px;border-radius:2px;background:#00AEEF;margin-top:2px}
+.nav a .dot{width:24px;height:3px;margin-top:2px}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-size:14px;line-height:20px;font-weight:600;color:#17324D}
+.input{min-height:48px;border:1px solid #6C8293;border-radius:8px;background:#fff;padding:0 14px;display:flex;align-items:center;justify-content:space-between;font-size:16px;color:#17324D}
+.assist{background:#EAF6FC;border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.bar{height:8px;border-radius:999px;background:#EAF6FC;overflow:hidden}
+.bar>i{display:block;height:100%;background:#006B99;border-radius:999px}
+.sim{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:8px;background:#FFF5DA;color:#805800;font-size:13px;line-height:18px;font-weight:500}
+</style>
+</helmet>
+<div class="app phone">
+<header class="top"><button class="iconbtn" aria-label="Back"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button><h1 class="h-sec" style="flex:1">Why you see this</h1></header>
+<main class="scroll" style="gap:18px; padding-top:0">
+<p style="font-size:15px; line-height:22px">Three payments leave your current account before your salary arrives. On <b>4 Oct</b> your balance would reach <b>−€ 93,66</b>.</p>
+<div class="card" style="display:flex; flex-direction:column; gap:10px; padding:16px 16px 12px">
+<div class="row"><span class="h-card">Your balance, next 6 days</span></div>
+<svg width="318" height="142" viewBox="0 0 318 142" role="img" aria-label="Balance forecast: € 1.352 today, lowest −€ 93,66 on 4 Oct, back up after salary on 5 Oct">
+<rect x="0" y="99.0" width="318" height="21.0" fill="#FFF0ED"/>
+<line x1="0" x2="318" y1="99.0" y2="99.0" stroke="#B42318" stroke-width="1" stroke-dasharray="3 3"/>
+<text x="316" y="94.0" text-anchor="end" font-size="11" fill="#B42318">€ 0</text>
+<polyline points="8.0,11.1 68.4,64.7 128.8,85.0 189.2,93.9 249.6,95.4 310.0,8.0" fill="none" stroke="#167347" stroke-width="2" stroke-dasharray="5 4"/>
+<polyline points="8.0,11.1 68.4,74.4 128.8,94.8 189.2,103.6 249.6,105.1 310.0,8.0" fill="none" stroke="#006B99" stroke-width="2.5" stroke-linejoin="round"/>
+<circle cx="249.6" cy="105.1" r="4" fill="#B42318"/>
+<text x="8.0" y="136" text-anchor="middle" font-size="11" fill="#526779">30 Sep</text><text x="68.4" y="136" text-anchor="middle" font-size="11" fill="#526779">1 Oct</text><text x="128.8" y="136" text-anchor="middle" font-size="11" fill="#526779">2 Oct</text><text x="189.2" y="136" text-anchor="middle" font-size="11" fill="#526779">3 Oct</text><text x="249.6" y="136" text-anchor="middle" font-size="11" fill="#526779">4 Oct</text><text x="310.0" y="136" text-anchor="middle" font-size="11" fill="#526779">5 Oct</text>
+</svg>
+<div style="display:flex; gap:16px" class="meta"><span style="display:flex; align-items:center; gap:6px"><i style="width:14px; height:3px; background:#006B99; display:inline-block"></i>Doing nothing</span><span style="display:flex; align-items:center; gap:6px"><i style="width:14px; height:0; border-top:2px dashed #167347; display:inline-block"></i>With € 150 moved</span></div>
+</div>
+<div class="card rows" style="padding:0 16px">
+<div class="row" style="min-height:48px"><span style="font-size:15px">Rent <span class="meta">· 1 Oct</span></span><span class="amt" style="font-size:15px">−€ 950,00</span></div><div class="row" style="min-height:48px"><span style="font-size:15px">KBC car loan <span class="meta">· 2 Oct</span></span><span class="amt" style="font-size:15px">−€ 289,00</span></div><div class="row" style="min-height:48px"><span style="font-size:15px">Luminus <span class="meta">· 3 Oct</span></span><span class="amt" style="font-size:15px">−€ 112,00</span></div><div class="row" style="min-height:48px"><span style="font-size:15px">Salary, Werkgever NV <span class="meta">· 5 Oct</span></span><span class="amt" style="font-size:15px">+€ 2.480,00</span></div>
+</div>
+<div class="card" style="display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px 16px; padding:14px 16px">
+<div><div class="meta">How sure</div><div style="font-weight:600; color:#003B71">High</div></div>
+<div><div class="meta">Checked by</div><div style="font-weight:600; color:#003B71">Rules on your data</div></div>
+<div><div class="meta">Data used</div><div style="font-size:14px; line-height:20px">Scheduled payments, income</div></div>
+<div><div class="meta">KBC product</div><div style="font-size:14px; line-height:20px">None. Your own money.</div></div>
+</div>
+<button class="link" style="align-self:flex-start; padding:0">Change what Autopilot may use</button>
+</main>
+<nav class="nav" aria-label="Main"><a href="#" class="on" aria-current="page"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg><span>Start</span><span class="dot"></span></a><a href="#"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="14" rx="2"/><path d="M3 10.5h18M8 3.5h8"/></svg><span>My KBC</span><span class="dot"></span></a><a href="#"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg><span>Invest</span><span class="dot"></span></a><a href="#"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2.2 4.8-4.8 2.2 2.2-4.8z"/></svg><span>Autopilot</span><span class="dot"></span></a></nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

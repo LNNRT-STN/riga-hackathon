@@ -2,58 +2,38 @@
 
 A proof of concept for the KBC hackathon case: **a new way KBC understands, supports and guides 2.3M customers**.
 
-> You set your goals with Autopilot (it suggests some from your own life). It watches for situations that matter to your goals, shows **one** card only
-> when it clearly helps, stays quiet otherwise, and never acts without your approval.
+Customers set concrete goals (amount, monthly pace, date). Autopilot suggests goals from their own life signals and their
+Payconiq circle, and an LLM helps check whether the goals are realistic. It then watches for situations that matter to those goals and shows
+**one** card only when it helps more than doing nothing. It never acts without approval.
 
-**Situations, not segments.** Every customer goes through one engine. Each situation (cash shortage ahead, bill went up,
-sports club refund, trouble logging in, room to top up a goal, deposit matures) is one row in
-[`src/backend/situations.py`](src/backend/situations.py). A card is shown only when
-`customer € × goal weight × confidence − annoyance` beats doing nothing. Customer value ranks cards; KBC value is only logged.
+**Situations, not segments.** One engine serves every customer. Each situation is one row in
+[`src/backend/situations.py`](src/backend/situations.py) and is scored as
+`customer value × goal weight × confidence − annoyance`, compared with doing nothing. Customer value ranks cards;
+KBC value is only logged. The app opens on a short jury tour, then lets you switch between demo customers.
 
-All customer data is synthetic. Every transfer, form and advisor call is simulated.
+## Run it
 
-## Run locally
-
-```sh
-cd src/frontend && npm ci && npm run build      # React + Vite
-cd ../backend && python3 server.py              # Python standard library only → http://localhost:8000
-python3 -m unittest                             # engine, safety and onboarding checks
-```
-
-For frontend work, run `python3 server.py` and `npm run dev` side by side (Vite proxies `/api`).
-
-### AI (optional)
-
-Jev (typed yes/no screening) and the LLM (card wording, onboarding) run through OpenRouter **only** when
-`OPENROUTER_API_KEY` is set in the environment. There is no `.env` file in this public repo. Without a key, every flow
-uses the offline fallback (keyword checks, templates, rule-based goal extraction), so the demo always works.
+Requirements: Python 3.12+ and Node 20.19+ or 22.12+.
 
 ```sh
-export OPENROUTER_API_KEY=...        # in your shell only, never in a file
-python3 seed.py --warm               # optional: pre-compute AI answers into ai_cache.json (synthetic data, safe to commit)
+cd src/frontend && npm ci && npm run build
+cd ../backend && python3 server.py        # → http://localhost:8000
+python3 -m unittest                       # tests
 ```
 
-## Deploy (Google Cloud Run)
+AI is optional. Set `OPENROUTER_API_KEY` in your shell (never in a file, since the repo is public). Without it, every flow
+falls back to keyword checks, templates and rule-based goal extraction.
 
-```sh
-PROJECT=<your-project-id>; REGION=us-central1
-gcloud config set project $PROJECT
-gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com secretmanager.googleapis.com
-printf %s "$OPENROUTER_API_KEY" | gcloud secrets create openrouter-key --data-file=-     # optional
-gcloud run deploy kbc-autopilot --source . --region $REGION --allow-unauthenticated \
-  --min-instances 1 --max-instances 1 \
-  --set-secrets OPENROUTER_API_KEY=openrouter-key:latest    # omit this line to run offline
-```
+Deploy: `gcloud run deploy kbc-autopilot --source . --set-secrets OPENROUTER_API_KEY=openrouter-key:latest`
+(one instance, so all visitors share one demo state).
 
-One instance keeps one shared demo state; the database is rebuilt from the seed on every start, and **Reset demo** restores
-it. Put a spend cap on the OpenRouter key: the URL is public. The live AI endpoints are rate-limited per visitor.
+## Unfinished
 
-## Repository layout
+- **Everything is simulated.** Customers are synthetic (7 demo + 2,000 generated), and no real money, forms or advisor calls are involved.
+- **English only.** Dutch and French are not done yet.
+- **Six situations** are wired end to end. More are one catalogue row each but not written yet.
+- **Circle signals** would need peer consent and a k-anonymity floor (≥ 5 people) before a real pilot.
+- **No real login or KBC integration.** The database is rebuilt from the seed on every start, and "Reset demo" does the same.
+- **Credit and investing** only hand off to a person. Autopilot gives no advice on them.
 
-| Path | Purpose |
-| --- | --- |
-| `src/backend/` | Engine (`engine.py`), catalogue (`situations.py`), AI calls (`ai.py`), onboarding, server, seed, tests. |
-| `src/frontend/` | React app styled from `DESIGN.md` (Radix primitives, Lucide icons, sonner toasts). |
-| `group/ideation/` | Research and decisions, e.g. [`2026-09-30-research.md`](group/ideation/2026-09-30-research.md). |
-| `PRODUCT.md`, `DESIGN.md` | Product truth and the KBC-inspired visual system. |
-| `AGENTS.md` | Contributor and agent workflow. |
+More detail: [`AGENTS.md`](AGENTS.md) (setup, rules), [`PRODUCT.md`](PRODUCT.md), [`DESIGN.md`](DESIGN.md).
