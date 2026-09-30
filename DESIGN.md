@@ -1,5 +1,7 @@
 # KBC Mobile — DESIGN.md
 
+Use the impeccable skill for UI and UX ask me questions on how I want it.
+
 > AI-ready design reference for a KBC-inspired banking prototype. Read this file before creating or changing any screen. Apply the same visual language to every page, component, and state.
 >
 > Status: independent interpretation of public KBC Mobile references, reviewed 30 September 2026. This is not KBC's official internal design system. Exact colours, type sizes, spacing, motion, and component dimensions below are proposed prototype tokens, not verified production specifications.
