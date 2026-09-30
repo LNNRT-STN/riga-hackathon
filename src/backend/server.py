@@ -151,7 +151,7 @@ def view(cid: int, live: bool = True) -> dict:
         "mode": c["mode"], "consent_help": bool(c["consent_help"]), "consent_product": bool(c["consent_product"]),
         "value_created": round(c["value_created"], 2),
         "transactions": [{"day": str(t.day), "amount": t.amount, "counterparty": t.counterparty}
-                         for t in sorted(txns, key=lambda t: t.day, reverse=True)[:6]],
+                         for t in sorted(txns, key=lambda t: t.day, reverse=True)[:90]],   # the jury tour lists evidence from these
         "card": shown,
         "pipeline": pipeline(c, txns, f, cands, card, opts, bar, source, qs, probs, shown),
         "considered": considered, "bar": bar,

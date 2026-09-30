@@ -105,10 +105,13 @@ def demo_customers():
         + monthly("TELENET BV", -45, 11, "DOMICILIERING") + monthly("BASIC-FIT", -29.99, 4, "DOMICILIERING") \
         + daily_life(r, 26) \
         + [(date(2026, 9, 6), -38.5, "DREAMBABY", "LUIERS MAAT 2"), (date(2026, 9, 21), -24.9, "KRUIDVAT BABY", "BETALING BANCONTACT")]
-    # Bas (6) and Jurre (7) are friends: drinks split through Payconiq. Bas saves for a ring; Jurre has started buying flowers.
+    # Bas (6) and Jurre (7) are friends: drinks split through Payconiq. Bas bought flowers for months, then set a ring goal;
+    # Jurre has started buying flowers too. This is the jury tour's opening story.
     bas = monthly("WERKGEVER NV", 2700, 27, "LOON") + monthly("HUUR APPARTEMENT", -880, 1, "DOORLOPENDE OPDRACHT") \
         + monthly("LUMINUS", -90, 9, "DOMICILIERING ENERGIE") + monthly("NETFLIX", -13.99, 17, "DOMICILIERING") \
-        + daily_life(r, 24) + [(date(2026, 9, 13), 18.0, "PAYCONIQ", "Drinks", 7), (date(2026, 8, 30), -22.5, "PAYCONIQ", "Pizza", 7)]
+        + daily_life(r, 24) + [(date(2026, 9, 13), 18.0, "PAYCONIQ", "Drinks", 7), (date(2026, 8, 30), -22.5, "PAYCONIQ", "Pizza", 7)] \
+        + [(date(2026, m, d), a, "BLOEMEN VAN GOGH", "BETALING BANCONTACT")
+           for m, d, a in ((7, 4, -29.5), (7, 25, -42.0), (8, 14, -35.0), (8, 29, -48.0), (9, 19, -39.0))]
     jurre = monthly("WERKGEVER NV", 2550, 26, "LOON") + monthly("HUUR STUDIO", -820, 1, "DOORLOPENDE OPDRACHT") \
         + monthly("ENGIE", -92, 16, "DOMICILIERING ENERGIE") + monthly("SPOTIFY", -11.99, 8, "DOMICILIERING") \
         + daily_life(r, 24) + [(date(2026, 9, 13), -18.0, "PAYCONIQ", "Drinks", 6), (date(2026, 8, 30), 22.5, "PAYCONIQ", "Pizza", 6),

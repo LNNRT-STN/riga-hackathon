@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
-import { ChartColumn, Compass, Cpu, House, LayoutGrid, ListOrdered, RotateCcw, Smartphone, UserRoundPlus } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ChartColumn, Compass, Cpu, House, LayoutGrid, ListOrdered, RotateCcw, Smartphone } from "lucide-react";
 import { toast, Toaster } from "sonner";
 import { api, type Card, type Customer, type Notification, type Option, type Result } from "./api";
 import { Autopilot } from "./Autopilot";
@@ -10,16 +10,15 @@ import { Pipeline } from "./Pipeline";
 import { NotificationBanner, Scenarios } from "./Scenarios";
 import { Sheet } from "./Sheet";
 import { Start } from "./Start";
+import { STEPS, Tour, type Person, type TourStep } from "./Tour";
 
 type View =
-  | { name: "start" }
-  | { name: "autopilot" }
-  | { name: "onboarding" }
+  | { name: "start" | "autopilot" | "onboarding" }
   | { name: "review"; card: Card; option: Option }
   | { name: "done"; result: Result }
   | { name: "tab"; tab: string };
 
-type Person = { id: number; name: string; persona: string };
+type Pending = Pick<TourStep, "view" | "note">;
 
 // The visitor's own try-out customer survives a reload in this tab. Storage can throw (private mode, blocked).
 const TRY_KEY = "kbc-try-id";
@@ -27,11 +26,22 @@ const readTry = () => { try { return Number(sessionStorage.getItem(TRY_KEY)) || 
 const writeTry = (v: number | null) => {
   try { if (v) sessionStorage.setItem(TRY_KEY, String(v)); else sessionStorage.removeItem(TRY_KEY); } catch { /* ignore */ }
 };
+// Where the jury is in the tour, also per tab.
+const STEP_KEY = "kbc-tour-step";
+const readStep = () => { try { return Math.min(STEPS.length - 1, Number(sessionStorage.getItem(STEP_KEY)) || 0); } catch { return 0; } };
+const writeStep = (v: number) => { try { sessionStorage.setItem(STEP_KEY, String(v)); } catch { /* ignore */ } };
+const FIRST = STEPS[0].who as number;
 
 export function App() {
   const [people, setPeople] = useState<Person[]>([]);
   const [tryId, setTryId] = useState<number | null>(readTry);
-  const [id, setId] = useState(() => tryId ?? 1);
+  const [step, setStep] = useState(readStep);
+  const [id, setId] = useState(() => {
+    const w = STEPS[step].who;
+    return (w === "try" ? tryId : w) ?? tryId ?? FIRST;
+  });
+  // View and notification the tour wants once the next customer has loaded.
+  const pending = useRef<Pending | null>({ view: STEPS[step].view, note: STEPS[step].note });
   const [note, setNote] = useState<Notification | null>(null);
   const [c, setC] = useState<Customer | null>(null);
   const [view, setView] = useState<View>({ name: "start" });
@@ -39,17 +49,20 @@ export function App() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [phone, setPhone] = useState<HTMLDivElement | null>(null);
-  const [engine, setEngine] = useState(false);
+  const [engine, setEngine] = useState(() => !!STEPS[step].engine);
 
   const load = useCallback(async (cid: number) => {
     setError(null);
     try {
       const data = await api.customer(cid);
       setC(data);
-      setView(data.onboarded ? { name: "start" } : { name: "onboarding" });
+      const p = pending.current;
+      pending.current = null;
+      setView(p?.view ? { name: p.view } : data.onboarded ? { name: "start" } : { name: "onboarding" });
+      if (p?.note) setNote(p.note);
     } catch (e) {
       // A stored try-out id may be gone (demo reset, server restart): forget it and fall back to the first persona.
-      if (cid === readTry()) { writeTry(null); setTryId(null); setId(1); return; }
+      if (cid === readTry()) { writeTry(null); setTryId(null); setId(FIRST); return; }
       setError((e as Error).message);
     }
   }, []);
@@ -99,8 +112,29 @@ export function App() {
     writeTry(you.id);
     setTryId(you.id);
     setEngine(false);
+    pending.current = { view: "onboarding" };
     setId(you.id);
   });
+
+  function go(i: number) {
+    const s = STEPS[i];
+    setStep(i);
+    writeStep(i);
+    setEngine(!!s.engine);
+    const target = s.who === "try" ? tryId : s.who;
+    if (!target) return;
+    if (target !== id) { pending.current = { view: s.view, note: s.note }; return setId(target); }
+    setSheet(null);
+    setNote(s.note ?? null);
+    if (s.view) setView({ name: s.view });
+  }
+
+  function pickCustomer(cid: number) {
+    setEngine(false);
+    if (cid === id) return setView(c?.onboarded ? { name: "start" } : { name: "onboarding" });
+    pending.current = null;
+    setId(cid);
+  }
 
   const scenario = (sid: string) => run(async () => {
     const r = await api.scenario(id, sid);
@@ -114,6 +148,7 @@ export function App() {
 
   function openNote() {
     setNote(null);
+    if (c && !c.onboarded) return setView({ name: "onboarding" });   // the tour's goal suggestion
     setView({ name: "start" });
     requestAnimationFrame(() => {
       // Scroll only the phone's screen, never the page around it.
@@ -133,22 +168,13 @@ export function App() {
   }
 
   const tabs = [["Start", House], ["My KBC", LayoutGrid], ["Invest", ChartColumn], ["Autopilot", Compass]] as const;
-  const list: Person[] = tryId && !people.some((p) => p.id === tryId)
-    ? [...people, { id: tryId, name: "You", persona: "Your own try-out" }] : people;
   const home = () => setView({ name: "start" });
 
   return (
     <>
       <header className="topbar-app">
         <div className="wordmark"><Compass size={22} /> KBC <span>Autopilot</span></div>
-        <div className="who">
-          <label htmlFor="who">Customer</label>
-          <select id="who" value={id} onChange={(e) => { setEngine(false); setId(Number(e.target.value)); }}>
-            {list.map((p) => <option key={p.id} value={p.id}>{p.name} · {p.persona}</option>)}
-          </select>
-        </div>
         <div className="shell-actions">
-          <button className="btn secondary" onClick={tryIt} disabled={busy}><UserRoundPlus size={18} /> <span className="lbl-long">Try it as yourself</span><span className="lbl-short">Try it</span></button>
           <button className="btn secondary" onClick={() => setEngine(!engine)}>
             {engine ? <><Smartphone size={18} /> <span className="lbl-long">Back to the app</span><span className="lbl-short">App</span></> : <><Cpu size={18} /> <span className="lbl-long">Behind the scenes</span><span className="lbl-short">Engine</span></>}
           </button>
@@ -161,6 +187,8 @@ export function App() {
       </p>
 
       <div className={`stage${engine ? " wide" : ""}`}>
+        <Tour step={step} c={c} people={people} tryId={tryId} busy={busy} onGo={go} onTry={tryIt} onPick={pickCustomer}
+          onRestart={async () => { await resetDemo(); go(0); }} />
         {engine && <BehindTheScenes onBack={() => setEngine(false)} />}
         <div className="app-col" hidden={engine}>
           <div className="app" ref={setPhone}>

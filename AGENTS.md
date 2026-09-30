@@ -25,6 +25,8 @@ Payconiq circle, and an LLM spars about realism. It then watches for situations 
 card only when it beats doing nothing. The flight metaphor is one hook ("Where do you want to fly to?"), nothing more. It never acts without approval. English only for now.
 All data is synthetic and every action is simulated.
 
+The app opens on a **jury tour** (`src/frontend/src/Tour.tsx`, one `STEPS` array): the Bas → Jurre ring story from the deck, then the visitor's own goal, moments that trigger actions, the 2,000-customer engine, and finally the other demo customers.
+
 | Path | What it is |
 | --- | --- |
 | `src/backend/` | Python **standard library only** (no pip installs). `server.py` (HTTP + API), `engine.py` (features, scoring, rules), `situations.py` (the catalogue: one row per situation), `paths.py` (suggested goals: one row per life event), `ai.py` (Jev + LLM via OpenRouter), `onboarding.py`, `seed.py` (7 demo + 2,000 synthetic customers), `schema.sql`, `test_engine.py`. |

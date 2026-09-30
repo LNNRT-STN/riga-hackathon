@@ -111,6 +111,9 @@ export function Onboarding({ c, onBack, onSaved, notify }: {
                     <div><strong>{s.title}</strong></div>
                     <div className="meta num">{eur(s.target_eur, true)} by {month(s.deadline)}</div>
                     <div className="small muted">{s.reason}</div>
+                    {s.evidence.length > 0 && (
+                      <ul className="meta sugg-evidence">{s.evidence.map((e, i) => <li key={i}>{e}</li>)}</ul>
+                    )}
                   </div>
                   <button className="btn secondary" type="button" disabled={busy} onClick={() => add(fromSuggestion(s, draft.length + 1))}>
                     <Plus size={16} /> Add
