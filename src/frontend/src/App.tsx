@@ -182,8 +182,7 @@ export function App() {
         </div>
       </header>
       <p className="meta shell-intro">
-        You set your goals; Autopilot watches for situations that matter to your goals and shows one card only when
-        it clearly helps. Synthetic customers; every transfer, form and advisor call is simulated.
+        Synthetic customers. Every transfer, form and advisor call is simulated.
       </p>
 
       <div className={`stage${engine ? " wide" : ""}`}>
@@ -258,13 +257,6 @@ export function App() {
             <ListOrdered size={18} /> How Autopilot decided
           </button>
         </div>
-        {!engine && c && (
-          <aside className="decided panel" aria-labelledby="decided-title">
-            <h2 id="decided-title" className="section-title" style={{ marginBottom: 4 }}>How Autopilot decided</h2>
-            <p className="small muted" style={{ marginBottom: 16 }}>For {c.name}. Same seven steps for every customer.</p>
-            <Pipeline c={c} />
-          </aside>
-        )}
       </div>
     </>
   );
