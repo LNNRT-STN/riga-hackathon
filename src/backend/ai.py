@@ -33,14 +33,26 @@ def _hash(*parts) -> str:
     return hashlib.sha256(json.dumps(parts, sort_keys=True, default=str).encode()).hexdigest()[:24]
 
 
+# Only these two fixed endpoints are ever called (no SSRF), and redirects are refused so the key never leaves them.
+ENDPOINTS = {"/systemone": BASE + "/systemone", "/chat/completions": BASE + "/chat/completions"}
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, *args, **kwargs):
+        return None
+
+
+_opener = urllib.request.build_opener(_NoRedirect)
+
+
 def _post(path: str, body: dict, timeout: float) -> dict | None:
     req = urllib.request.Request(
-        BASE + path, data=json.dumps(body).encode(), method="POST",
+        ENDPOINTS[path], data=json.dumps(body).encode(), method="POST",
         headers={"Authorization": f"Bearer {os.environ['OPENROUTER_API_KEY']}", "Content-Type": "application/json",
                  "X-Title": "KBC Autopilot prototype"})
     for attempt in range(2):
         try:
-            with urllib.request.urlopen(req, timeout=timeout) as r:
+            with _opener.open(req, timeout=timeout) as r:
                 return json.loads(r.read())
         except urllib.error.HTTPError as e:
             if e.code in (429, 529) and attempt == 0:
