@@ -1,0 +1,10 @@
+**/node_modules
+**/dist
+**/__pycache__
+**/*.db
+.git
+.impeccable
+.agents
+.codex
+.env
+.env.*

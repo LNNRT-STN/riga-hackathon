@@ -1,0 +1,86 @@
+{
+ "v": 3,
+ "createdOnFiles": {
+  "v": 1,
+  "at": "2026-09-30T20:00:00Z"
+ },
+ "title": "KBC Autopilot mockups",
+ "launch": {
+  "view": "canvas"
+ },
+ "pages": [],
+ "boards": {
+  "Main.dc.html": {
+   "x": 0,
+   "y": 0,
+   "w": 390,
+   "h": 844,
+   "title": "1 \u00b7 Set a goal",
+   "radius": 28
+  },
+  "Start.dc.html": {
+   "x": 470,
+   "y": 0,
+   "w": 390,
+   "h": 844,
+   "title": "2 \u00b7 One card, when it helps",
+   "radius": 28
+  },
+  "Why.dc.html": {
+   "x": 940,
+   "y": 0,
+   "w": 390,
+   "h": 844,
+   "title": "3 \u00b7 Why you see this",
+   "radius": 28
+  },
+  "Review.dc.html": {
+   "x": 1410,
+   "y": 0,
+   "w": 390,
+   "h": 844,
+   "title": "4 \u00b7 You approve",
+   "radius": 28
+  },
+  "Done.dc.html": {
+   "x": 1880,
+   "y": 0,
+   "w": 390,
+   "h": 844,
+   "title": "5 \u00b7 On track, then quiet",
+   "radius": 28
+  },
+  "Engine.dc.html": {
+   "x": 0,
+   "y": 1300,
+   "w": 1440,
+   "h": 900,
+   "title": "At scale"
+  }
+ },
+ "order": [
+  "Main.dc.html",
+  "Start.dc.html",
+  "Why.dc.html",
+  "Review.dc.html",
+  "Done.dc.html",
+  "Engine.dc.html"
+ ],
+ "notes": {
+  "story": {
+   "x": 0,
+   "y": -280,
+   "text": "Sarah's month with Autopilot",
+   "kind": "title1",
+   "maxW": 2270
+  },
+  "scale": {
+   "x": 0,
+   "y": 1020,
+   "text": "One engine for every customer",
+   "kind": "title1",
+   "maxW": 1440
+  }
+ },
+ "designSystems": []
+}
