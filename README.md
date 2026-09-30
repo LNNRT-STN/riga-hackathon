@@ -1,5 +1,7 @@
 # KBC Autopilot
 
+https://kbc-autopilot-1000875003497.us-central1.run.app/
+
 A proof of concept for the KBC hackathon case: **a new way KBC understands, supports and guides 2.3M customers**.
 
 Customers set concrete goals (amount, monthly pace, date). Autopilot suggests goals from their own life signals and their
