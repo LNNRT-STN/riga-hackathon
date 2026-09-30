@@ -6,3 +6,5 @@
 .impeccable
 .agents
 .codex
+.env
+.env.*

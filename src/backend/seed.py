@@ -103,7 +103,17 @@ def demo_customers():
         + [(date(2026, 9, 16), -260.0, "KFC HEIST", "LIDGELD U10 SEIZOEN 26-27")]
     sam = monthly("WERKGEVER NV", 2450, 28, "LOON") + monthly("HUUR STUDIO", -780, 1, "DOORLOPENDE OPDRACHT") \
         + monthly("TELENET BV", -45, 11, "DOMICILIERING") + monthly("BASIC-FIT", -29.99, 4, "DOMICILIERING") \
-        + daily_life(r, 26)
+        + daily_life(r, 26) \
+        + [(date(2026, 9, 6), -38.5, "DREAMBABY", "LUIERS MAAT 2"), (date(2026, 9, 21), -24.9, "KRUIDVAT BABY", "BETALING BANCONTACT")]
+    # Bas (6) and Jurre (7) are friends: drinks split through Payconiq. Bas saves for a ring; Jurre has started buying flowers.
+    bas = monthly("WERKGEVER NV", 2700, 27, "LOON") + monthly("HUUR APPARTEMENT", -880, 1, "DOORLOPENDE OPDRACHT") \
+        + monthly("LUMINUS", -90, 9, "DOMICILIERING ENERGIE") + monthly("NETFLIX", -13.99, 17, "DOMICILIERING") \
+        + daily_life(r, 24) + [(date(2026, 9, 13), 18.0, "PAYCONIQ", "Drinks", 7), (date(2026, 8, 30), -22.5, "PAYCONIQ", "Pizza", 7)]
+    jurre = monthly("WERKGEVER NV", 2550, 26, "LOON") + monthly("HUUR STUDIO", -820, 1, "DOORLOPENDE OPDRACHT") \
+        + monthly("ENGIE", -92, 16, "DOMICILIERING ENERGIE") + monthly("SPOTIFY", -11.99, 8, "DOMICILIERING") \
+        + daily_life(r, 24) + [(date(2026, 9, 13), -18.0, "PAYCONIQ", "Drinks", 6), (date(2026, 8, 30), 22.5, "PAYCONIQ", "Pizza", 6),
+                               (date(2026, 9, 5), -35.0, "BLOEMEN VAN GOGH", "BETALING BANCONTACT"),
+                               (date(2026, 9, 26), -42.0, "BLOEMEN VAN GOGH", "BETALING BANCONTACT")]
     pin = [{"type": "pin_reset", "day": date(2026, 9, d), "data": {"channel": ch, "device": "phone-1"}}
            for d, ch in ((4, "app"), (11, "app"), (19, "branch"), (26, "app"))]
     return [
@@ -120,7 +130,12 @@ def demo_customers():
         dict(name="Lisa", persona="41 · two kids · deposit matures", balance=3900, savings=6100, txns=lisa,
              products={"mutualiteit": "Helan", "term deposit": {"amount": 10000, "matures": "2026-10-15"}},
              goals=[("long", "save_for", "Family holiday", 3000, 1200, "2027-07-01", 1, 200)]),
-        dict(name="Sam", persona="26 · new customer · no goals yet", balance=2100, savings=1500, txns=sam,
+        dict(name="Sam", persona="26 · new parent · no goals yet", balance=2100, savings=1500, txns=sam,
+             products={"mutualiteit": "Helan"}, goals=[], onboarded=0),
+        dict(name="Bas", persona="31 · saving for a wedding ring", balance=1900, savings=3200, txns=bas,
+             products={"mutualiteit": "CM"},
+             goals=[("long", "save_for", "Wedding ring", 3000, 900, "2027-09-01", 1, 150)]),
+        dict(name="Jurre", persona="29 · drinks with friends · no goals yet", balance=1750, savings=2600, txns=jurre,
              products={"mutualiteit": "Helan"}, goals=[], onboarded=0),
     ]
 
@@ -178,15 +193,57 @@ def insert(conn: sqlite3.Connection, cid: int, c: dict) -> None:
                  (cid, pkey(cid), c["balance"], c["savings"], json.dumps(c["products"]), c.get("mode", "normal"),
                   c.get("consent_help", 1), c.get("consent_product", 1), c.get("holdout", 0), c.get("onboarded", 1)))
     conn.execute("INSERT INTO identity VALUES (?,?,?)", (cid, c["name"], c["persona"]))
-    conn.executemany("INSERT INTO txn (customer_id, day, amount, counterparty, description) VALUES (?,?,?,?,?)",
-                     [(cid, str(d), round(a, 2), cp, desc) for d, a, cp, desc in c["txns"] if d <= TODAY])
-    conn.executemany("INSERT INTO event (customer_id, type, day, data) VALUES (?,?,?,?)",
-                     [(cid, e["type"], str(e["day"]), json.dumps(e["data"])) for e in c.get("events", [])])
+    insert_activity(conn, cid, c)
     conn.executemany("INSERT INTO goal (customer_id, horizon, type, title, target_eur, saved_eur, deadline, priority, "
                      "monthly_eur) VALUES (?,?,?,?,?,?,?,?,?)", [(cid, *g) for g in c["goals"]])
 
 
-DEMO_IDS = range(1, 6)
+def insert_activity(conn: sqlite3.Connection, cid: int, c: dict) -> None:
+    conn.executemany("INSERT INTO txn (customer_id, day, amount, counterparty, description, peer_id) VALUES (?,?,?,?,?,?)",
+                     [(cid, str(t[0]), round(t[1], 2), t[2], t[3], t[4] if len(t) > 4 else None) for t in c["txns"] if t[0] <= TODAY])
+    conn.executemany("INSERT INTO event (customer_id, type, day, data) VALUES (?,?,?,?)",
+                     [(cid, e["type"], str(e["day"]), json.dumps(e["data"])) for e in c.get("events", [])])
+
+
+DEMO_IDS = range(1, 8)
+TRY_IDS = range(10000, 11000)   # "try it yourself" visitors, recycled round-robin
+
+
+def baseline() -> dict:
+    """An ordinary life for a "try it yourself" visitor. Triggers no situation on its own.
+    One fixed seed for every visitor: some random lives plant a new payee or a look-alike subscription (tested)."""
+    rng = random.Random(0)
+    tx = monthly("WERKGEVER NV", 2600, 28, "LOON") + monthly("HUUR APPARTEMENT", -900, 1, "DOORLOPENDE OPDRACHT") \
+        + monthly("ENGIE", -95, 15, "DOMICILIERING ENERGIE") + monthly("SPOTIFY", -11.99, 8, "DOMICILIERING") \
+        + monthly("NETFLIX", -13.99, 17, "DOMICILIERING") + daily_life(rng, 22)
+    # balance kept low enough that "room to top up a goal" only fires in its own scenario
+    return dict(name="You", persona="You · try it yourself", balance=1500.0, savings=4000.0, txns=tx, events=[],
+                products={"mutualiteit": "Helan"}, goals=[], onboarded=0)
+
+
+# One entry per situation in situations.py. `apply` patches a baseline dict, copying the demo personas' patterns.
+SCENARIOS = {
+    "cash_shortage": dict(
+        label="Bills before payday", blurb="Your rent and car loan go out before your salary comes in", needs_goal=False,
+        apply=lambda c: c.update(balance=350.0, txns=c["txns"] + monthly("KBC AUTOLENING", -289, 2, "AFLOSSING"))),
+    "price_rise": dict(
+        label="A bill goes up", blurb="Your internet bill quietly goes up", needs_goal=False,
+        apply=lambda c: c["txns"].extend(monthly("TELENET BV", -62, 12, "DOMICILIERING INTERNET + TV", [-62, -62, -76]))),
+    "sports_club": dict(
+        label="Sports club fee", blurb="You pay your kid's football club membership", needs_goal=False,
+        apply=lambda c: c["txns"].append((TODAY - timedelta(days=14), -260.0, "KFC HEIST", "LIDGELD U10 SEIZOEN 26-27"))),
+    "pin_friction": dict(
+        label="Trouble logging in", blurb="You keep forgetting your PIN and reset it four times", needs_goal=False,
+        apply=lambda c: c["events"].extend({"type": "pin_reset", "day": TODAY - timedelta(days=k),
+                                            "data": {"channel": ch, "device": "phone-1"}}
+                                           for k, ch in ((26, "app"), (19, "app"), (11, "branch"), (4, "app")))),
+    "budget_room": dict(
+        label="Money to spare", blurb="Your account holds more than you usually need this month", needs_goal=True,
+        apply=lambda c: c.update(balance=3400.0)),
+    "maturity": dict(
+        label="Deposit matures", blurb="Your € 10.000 term deposit is about to mature", needs_goal=False,
+        apply=lambda c: c["products"].update({"term deposit": {"amount": 10000, "matures": str(TODAY + timedelta(days=15))}})),
+}
 
 
 def build(path: Path) -> sqlite3.Connection:

@@ -11,10 +11,10 @@ const place = (c: Customer, where?: string) => {
   return where ?? "";
 };
 
-export function PageBar({ title, onBack }: { title: string; onBack: () => void }) {
+export function PageBar({ title, onBack }: { title: string; onBack?: () => void }) {
   return (
-    <div className="pagebar">
-      <button className="icon-btn" onClick={onBack} aria-label="Back"><ChevronLeft size={24} /></button>
+    <div className={`pagebar${onBack ? "" : " root"}`}>
+      {onBack && <button className="icon-btn" onClick={onBack} aria-label="Back"><ChevronLeft size={24} /></button>}
       <h1>{title}</h1>
     </div>
   );

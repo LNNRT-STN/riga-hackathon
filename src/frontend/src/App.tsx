@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
-import { ChartColumn, Compass, Cpu, House, LayoutGrid, RotateCcw, Smartphone, Tag } from "lucide-react";
+import { ChartColumn, Compass, Cpu, House, LayoutGrid, ListOrdered, RotateCcw, Smartphone, UserRoundPlus } from "lucide-react";
 import { toast, Toaster } from "sonner";
-import { api, type Card, type Customer, type Option, type Result } from "./api";
+import { api, type Card, type Customer, type Notification, type Option, type Result } from "./api";
 import { Autopilot } from "./Autopilot";
 import { BehindTheScenes } from "./BehindTheScenes";
 import { Done, Options, Review, Why } from "./Flows";
 import { Onboarding } from "./Onboarding";
+import { Pipeline } from "./Pipeline";
+import { NotificationBanner, Scenarios } from "./Scenarios";
 import { Sheet } from "./Sheet";
 import { Start } from "./Start";
 
@@ -19,12 +21,21 @@ type View =
 
 type Person = { id: number; name: string; persona: string };
 
+// The visitor's own try-out customer survives a reload in this tab. Storage can throw (private mode, blocked).
+const TRY_KEY = "kbc-try-id";
+const readTry = () => { try { return Number(sessionStorage.getItem(TRY_KEY)) || null; } catch { return null; } };
+const writeTry = (v: number | null) => {
+  try { if (v) sessionStorage.setItem(TRY_KEY, String(v)); else sessionStorage.removeItem(TRY_KEY); } catch { /* ignore */ }
+};
+
 export function App() {
   const [people, setPeople] = useState<Person[]>([]);
-  const [id, setId] = useState(1);
+  const [tryId, setTryId] = useState<number | null>(readTry);
+  const [id, setId] = useState(() => tryId ?? 1);
+  const [note, setNote] = useState<Notification | null>(null);
   const [c, setC] = useState<Customer | null>(null);
   const [view, setView] = useState<View>({ name: "start" });
-  const [sheet, setSheet] = useState<null | "why" | "options">(null);
+  const [sheet, setSheet] = useState<null | "why" | "options" | "pipeline">(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [phone, setPhone] = useState<HTMLDivElement | null>(null);
@@ -37,12 +48,14 @@ export function App() {
       setC(data);
       setView(data.onboarded ? { name: "start" } : { name: "onboarding" });
     } catch (e) {
+      // A stored try-out id may be gone (demo reset, server restart): forget it and fall back to the first persona.
+      if (cid === readTry()) { writeTry(null); setTryId(null); setId(1); return; }
       setError((e as Error).message);
     }
   }, []);
 
   useEffect(() => { api.customers().then(setPeople).catch((e) => setError(e.message)); }, []);
-  useEffect(() => { setSheet(null); load(id); }, [id, load]);
+  useEffect(() => { setSheet(null); setNote(null); toast.dismiss(); load(id); }, [id, load]);
 
   async function run<T>(fn: () => Promise<T>): Promise<T | undefined> {
     setBusy(true);
@@ -81,6 +94,36 @@ export function App() {
 
   const settings = (s: Parameters<typeof api.settings>[1]) => run(async () => setC(await api.settings(id, s)));
 
+  const tryIt = () => run(async () => {
+    const you = await api.try();
+    writeTry(you.id);
+    setTryId(you.id);
+    setEngine(false);
+    setId(you.id);
+  });
+
+  const scenario = (sid: string) => run(async () => {
+    const r = await api.scenario(id, sid);
+    setC(r.view);
+    toast.dismiss();
+    if (r.notification) return setNote(r.notification);
+    const narrow = !window.matchMedia("(min-width: 1000px)").matches;
+    toast("Autopilot stayed quiet — see why in How Autopilot decided",
+      narrow ? { action: { label: "Show", onClick: () => setSheet("pipeline") } } : undefined);
+  });
+
+  function openNote() {
+    setNote(null);
+    setView({ name: "start" });
+    requestAnimationFrame(() => {
+      // Scroll only the phone's screen, never the page around it.
+      const h = document.getElementById("for-you");
+      const screen = h?.closest<HTMLElement>(".screen");
+      if (h && screen) screen.scrollTo({ top: h.offsetTop - screen.offsetTop - 8 });
+      h?.focus({ preventScroll: true });
+    });
+  }
+
   async function resetDemo() {
     await run(async () => {
       await api.resetDemo();
@@ -89,97 +132,112 @@ export function App() {
     });
   }
 
-  const tabs = [["Start", House], ["My KBC", LayoutGrid], ["Invest", ChartColumn], ["Offers", Tag]] as const;
+  const tabs = [["Start", House], ["My KBC", LayoutGrid], ["Invest", ChartColumn], ["Autopilot", Compass]] as const;
+  const list: Person[] = tryId && !people.some((p) => p.id === tryId)
+    ? [...people, { id: tryId, name: "You", persona: "Your own try-out" }] : people;
   const home = () => setView({ name: "start" });
 
   return (
-    <div className={`stage${engine ? " wide" : ""}`}>
-      <aside className="jury" aria-label="Demo controls">
+    <>
+      <header className="topbar-app">
         <div className="wordmark"><Compass size={22} /> KBC <span>Autopilot</span></div>
-        <p className="jury-intro">
-          A proof of concept inside a KBC-style banking app. You say where you want to go; Autopilot watches for
-          situations that matter to your goals and shows one card only when it clearly helps.
-        </p>
-        <div className="people" role="group" aria-label="Open a demo customer">
-          {people.map((p) => (
-            <button key={p.id} className="person" aria-pressed={!engine && p.id === id} onClick={() => { setEngine(false); setId(p.id); }}>
-              <span className="avatar" aria-hidden="true">{p.name.slice(0, 2).toUpperCase()}</span>
-              <span><strong>{p.name}</strong><span className="meta">{p.persona}</span></span>
-            </button>
-          ))}
-        </div>
-        <div className="jury-select">
-          <label htmlFor="who" className="sr-only">Demo customer</label>
-          <select id="who" value={id} onChange={(e) => setId(Number(e.target.value))}>
-            {people.map((p) => <option key={p.id} value={p.id}>{p.name} · {p.persona}</option>)}
+        <div className="who">
+          <label htmlFor="who">Customer</label>
+          <select id="who" value={id} onChange={(e) => { setEngine(false); setId(Number(e.target.value)); }}>
+            {list.map((p) => <option key={p.id} value={p.id}>{p.name} · {p.persona}</option>)}
           </select>
-          <button className="icon-btn" onClick={resetDemo} aria-label="Reset demo" disabled={busy}><RotateCcw size={20} /></button>
         </div>
-        <div className="jury-foot">
-          <button className="btn" onClick={() => setEngine(!engine)}>
-            {engine ? <><Smartphone size={18} /> Back to the app</> : <><Cpu size={18} /> Behind the scenes</>}
+        <div className="shell-actions">
+          <button className="btn secondary" onClick={tryIt} disabled={busy}><UserRoundPlus size={18} /> <span className="lbl-long">Try it as yourself</span><span className="lbl-short">Try it</span></button>
+          <button className="btn secondary" onClick={() => setEngine(!engine)}>
+            {engine ? <><Smartphone size={18} /> <span className="lbl-long">Back to the app</span><span className="lbl-short">App</span></> : <><Cpu size={18} /> <span className="lbl-long">Behind the scenes</span><span className="lbl-short">Engine</span></>}
           </button>
-          <button className="btn secondary" onClick={resetDemo} disabled={busy}><RotateCcw size={18} /> Reset demo</button>
-          <p className="meta">Synthetic customers. Every transfer, form and advisor call is simulated.</p>
+          <button className="icon-btn" onClick={resetDemo} aria-label="Reset demo" title="Reset demo" disabled={busy}><RotateCcw size={20} /></button>
         </div>
-      </aside>
+      </header>
+      <p className="meta shell-intro">
+        You set your goals; Autopilot watches for situations that matter to your goals and shows one card only when
+        it clearly helps. Synthetic customers; every transfer, form and advisor call is simulated.
+      </p>
 
-      {engine && <BehindTheScenes onBack={() => setEngine(false)} />}
-      <div className="phone" ref={setPhone} hidden={engine}>
-        {error && <div className="screen"><div className="msg danger" role="alert">{error}
-          <button className="btn-text" onClick={() => load(id)}>Try again</button></div></div>}
-        {!error && !c && <div className="screen"><p className="muted">Loading</p></div>}
-        {!error && c && (
-          <>
-            {view.name === "start" && (
-              <Start key={c.id} c={c} busy={busy} onAutopilot={() => setView({ name: "autopilot" })} onPrimary={primary}
-                onRespond={respond} onWhy={() => setSheet("why")} />
-            )}
-            {view.name === "autopilot" && (
-              <Autopilot key={c.id} c={c} busy={busy} onBack={home} onEditPlan={() => setView({ name: "onboarding" })}
-                onSettings={settings} onResetMemory={() => run(async () => setC(await api.resetMemory(id)))}
-                onRevoke={(r) => run(async () => setC(await api.revokeRule(id, r)))} />
-            )}
-            {view.name === "onboarding" && (
-              <Onboarding key={c.id} c={c} onBack={home} notify={(m) => toast(m)}
-                onSaved={(fresh) => { setC(fresh); setView({ name: "autopilot" }); }} />
-            )}
-            {view.name === "review" && (
-              <Review c={c} card={view.card} option={view.option} busy={busy} onCancel={home}
-                onConfirm={(always) => approve(view.card, view.option, always)} />
-            )}
-            {view.name === "done" && <Done result={view.result} onHome={home} onAutopilot={() => setView({ name: "autopilot" })} />}
-            {view.name === "tab" && (
-              <div className="screen"><div className="empty"><strong>{view.tab}</strong>
-                <span className="small muted">Not part of this prototype. Autopilot lives on Start.</span></div></div>
-            )}
-            {["start", "tab"].includes(view.name) && (
-              <nav className="tabbar" aria-label="Main">
-                {tabs.map(([label, Icon]) => {
-                  const current = label === "Start" ? view.name === "start" : view.name === "tab" && view.tab === label;
-                  return (
-                    <button key={label} className="tab" aria-current={current ? "page" : undefined}
-                      onClick={() => setView(label === "Start" ? { name: "start" } : { name: "tab", tab: label })}>
-                      <Icon size={24} />{label}
-                    </button>
-                  );
-                })}
-              </nav>
-            )}
-            {c.card && (
+      <div className={`stage${engine ? " wide" : ""}`}>
+        {engine && <BehindTheScenes onBack={() => setEngine(false)} />}
+        <div className="app-col" hidden={engine}>
+          <div className="app" ref={setPhone}>
+            {error && <div className="screen"><div className="msg danger" role="alert">{error}
+              <button className="btn-text" onClick={() => load(id)}>Try again</button></div></div>}
+            {!error && !c && <div className="screen"><p className="muted">Loading</p></div>}
+            {!error && c && (
               <>
-                <Sheet title="Why am I seeing this?" open={sheet === "why"} onClose={() => setSheet(null)} container={phone}>
-                  <Why card={c.card} onSettings={() => { setSheet(null); setView({ name: "autopilot" }); }} />
+                {view.name === "start" && (
+                  <Start key={c.id} c={c} busy={busy} onAutopilot={() => setView({ name: "autopilot" })} onPrimary={primary}
+                    onRespond={respond} onWhy={() => setSheet("why")} />
+                )}
+                {view.name === "autopilot" && (
+                  <Autopilot key={c.id} c={c} busy={busy} onUpdate={setC}
+                    top={c.is_try && c.onboarded ? <Scenarios c={c} busy={busy} onRun={scenario} /> : undefined}
+                    onEditPlan={() => setView({ name: "onboarding" })}
+                    onSettings={settings} onResetMemory={() => run(async () => setC(await api.resetMemory(id)))}
+                    onRevoke={(r) => run(async () => setC(await api.revokeRule(id, r)))} />
+                )}
+                {view.name === "onboarding" && (
+                  <Onboarding key={c.id} c={c} onBack={home} notify={(m) => toast(m)}
+                    onSaved={(fresh) => { setC(fresh); setView({ name: "autopilot" }); }} />
+                )}
+                {view.name === "review" && (
+                  <Review c={c} card={view.card} option={view.option} busy={busy} onCancel={home}
+                    onConfirm={(always) => approve(view.card, view.option, always)} />
+                )}
+                {view.name === "done" && <Done result={view.result} onHome={home} onAutopilot={() => setView({ name: "autopilot" })} />}
+                {view.name === "tab" && (
+                  <div className="screen"><div className="empty"><strong>{view.tab}</strong>
+                    <span className="small muted">Not part of this prototype. Autopilot lives on Start.</span></div></div>
+                )}
+                {["start", "autopilot", "tab"].includes(view.name) && (
+                  <nav className="tabbar" aria-label="Main">
+                    {tabs.map(([label, Icon]) => {
+                      const current = label === "Start" ? view.name === "start"
+                        : label === "Autopilot" ? view.name === "autopilot" : view.name === "tab" && view.tab === label;
+                      return (
+                        <button key={label} className="tab" aria-current={current ? "page" : undefined}
+                          onClick={() => setView(label === "Start" ? { name: "start" } : label === "Autopilot" ? { name: "autopilot" }
+                            : { name: "tab", tab: label })}>
+                          <Icon size={24} />{label}
+                        </button>
+                      );
+                    })}
+                  </nav>
+                )}
+                {note && <NotificationBanner note={note} onOpen={openNote} onDismiss={() => setNote(null)} />}
+                <Sheet title="How Autopilot decided" open={sheet === "pipeline"} onClose={() => setSheet(null)} container={phone}>
+                  <Pipeline c={c} />
                 </Sheet>
-                <Sheet title="Your options" open={sheet === "options"} onClose={() => setSheet(null)} container={phone}>
-                  <Options card={c.card} onPick={(o) => pick(c.card!, o)} />
-                </Sheet>
+                {c.card && (
+                  <>
+                    <Sheet title="Why am I seeing this?" open={sheet === "why"} onClose={() => setSheet(null)} container={phone}>
+                      <Why card={c.card} onSettings={() => { setSheet(null); setView({ name: "autopilot" }); }} />
+                    </Sheet>
+                    <Sheet title="Your options" open={sheet === "options"} onClose={() => setSheet(null)} container={phone}>
+                      <Options card={c.card} onPick={(o) => pick(c.card!, o)} />
+                    </Sheet>
+                  </>
+                )}
               </>
             )}
-          </>
+            <Toaster position="top-center" richColors={false} toastOptions={{ style: { fontFamily: "inherit" } }} />
+          </div>
+          <button className="btn-text decided-open" onClick={() => setSheet("pipeline")} disabled={!c}>
+            <ListOrdered size={18} /> How Autopilot decided
+          </button>
+        </div>
+        {!engine && c && (
+          <aside className="decided panel" aria-labelledby="decided-title">
+            <h2 id="decided-title" className="section-title" style={{ marginBottom: 4 }}>How Autopilot decided</h2>
+            <p className="small muted" style={{ marginBottom: 16 }}>For {c.name}. Same seven steps for every customer.</p>
+            <Pipeline c={c} />
+          </aside>
         )}
-        <Toaster position="top-center" richColors={false} toastOptions={{ style: { fontFamily: "inherit" } }} />
       </div>
-    </div>
+    </>
   );
 }

@@ -17,7 +17,8 @@ from pathlib import Path
 
 BASE = "https://openrouter.ai/api/v1"
 JEV_MODEL = os.environ.get("JEV_MODEL", "~typesafe/jev-latest")
-LLM_MODEL = os.environ.get("LLM_MODEL", "anthropic/claude-haiku-4.5")
+LLM_MODEL = os.environ.get("LLM_MODEL", "anthropic/claude-haiku-4.5")            # card wording
+SPAR_MODEL = os.environ.get("SPAR_MODEL", "anthropic/claude-opus-5.5")           # onboarding sparring partner
 CACHE_FILE = Path(__file__).with_name("ai_cache.json")
 
 _cache: dict = json.loads(CACHE_FILE.read_text()) if CACHE_FILE.exists() else {}
@@ -77,14 +78,14 @@ def screen(state, qs: dict, fallbacks: dict, live: bool) -> tuple[dict, str]:
     return fallbacks, "offline"
 
 
-def llm_json(system: str, messages: list[dict], live: bool, max_tokens: int = 500) -> dict | None:
+def llm_json(system: str, messages: list[dict], live: bool, max_tokens: int = 500, model: str = LLM_MODEL) -> dict | None:
     """Chat completion that must return one JSON object."""
-    k = _hash("llm", LLM_MODEL, system, messages)
+    k = _hash("llm", model, system, messages)
     if k in _cache:
         return _cache[k]
     if not (live and has_key()):
         return None
-    res = _post("/chat/completions", {"model": LLM_MODEL, "max_tokens": max_tokens, "temperature": 0.3,
+    res = _post("/chat/completions", {"model": model, "max_tokens": max_tokens, "temperature": 0.3,
                                       "messages": [{"role": "system", "content": system}, *messages]}, timeout=25)
     try:
         text = res["choices"][0]["message"]["content"]
@@ -115,7 +116,8 @@ def phrase(title: str, body: str, required: list[str], live: bool) -> tuple[str,
     """LLM rewording of the frozen decision. Falls back to the template if anything is off."""
     out = llm_json(PHRASE_SYSTEM, [{"role": "user", "content": json.dumps({"title": title, "body": body})}], live, 300)
     if out and isinstance(out.get("title"), str) and isinstance(out.get("body"), str):
-        t, b = out["title"].strip(), out["body"].strip()
+        # LLMs often write "€150,00"; restore the house format "€ 150,00" so the exact-amount check can pass.
+        t, b = (re.sub(r"€\s*(?=\d)", "€ ", x.strip()) for x in (out["title"], out["body"]))
         if len(t) <= 80 and len(b) <= 280 and tone_ok(t + " " + b, required):
             return t, b
     return title, body

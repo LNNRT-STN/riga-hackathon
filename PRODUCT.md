@@ -30,6 +30,7 @@ Demo on a public Cloud Run URL, used by a jury on laptops and phones. All custom
 ## Capabilities and Constraints
 
 - First version is English only; NL/FR follow later.
+- Suggested goals from life signals (for example baby shops -> studies in 18 years) and from the customer's Payconiq circle (a friend saving for a ring plus flower purchases -> a ring), one row per life event in `paths.py`. Circle evidence is shown as an anonymous count; a real pilot needs the peer's explicit sharing consent and a k-anonymity floor (at least 5 people) before a circle signal is used. Onboarding is a form with concrete amounts, monthly pace and dates, plus a sparring chat with an LLM.
 - Six situations wired end to end: cash shortage ahead, bill went up, sports club fee refund, trouble logging in, room to top up a goal, deposit matures.
 - Human in the loop: every money movement goes through a review step; "Always do this" rules are own-accounts only, capped and revocable.
 - Customer controls: Later, Not relevant, mode (quiet / normal / proactive), consent toggles mirroring KBC's "Extra gebruiksgemak" and "Op jouw maat", visible and resettable memory.
@@ -37,7 +38,7 @@ Demo on a public Cloud Run URL, used by a jury on laptops and phones. All custom
 
 ## Brand Commitments
 
-Visual language follows `DESIGN.md` (KBC-inspired prototype system, not an official KBC design system). No official KBC logo or Kate assets are available; use a text wordmark and neutral icons. The flight metaphor ("Where do you want to fly to?", destination, stopover, ETA, on course) lives only in onboarding and on the Autopilot page.
+Visual language follows `DESIGN.md` (KBC-inspired prototype system, not an official KBC design system). No official KBC logo or Kate assets are available; use a text wordmark and neutral icons. The flight metaphor is limited to the single hook "Where do you want to fly to?" on the Autopilot page and in the guide's opening line; everywhere else the product speaks of goals, expected dates and being on track, and the name that carries the idea is Autopilot.
 
 ## Evidence on Hand
 

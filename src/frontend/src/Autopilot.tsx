@@ -1,6 +1,8 @@
+import { useState, type ReactNode } from "react";
 import { Accordion, Switch, ToggleGroup } from "radix-ui";
-import { ChevronDown, Plane, RotateCcw } from "lucide-react";
-import type { Customer } from "./api";
+import { ChevronDown, Plus, RotateCcw, Target } from "lucide-react";
+import { toast } from "sonner";
+import { api, type Customer, type DraftGoal, type Suggestion } from "./api";
 import { GoalRows, Route, type PlanGoal } from "./FlightPlan";
 import { PageBar } from "./Flows";
 import { day, eur, month } from "./format";
@@ -11,23 +13,49 @@ const MODES = {
   proactive: "Small wins too, from about € 3 a year.",
 } as const;
 
-export function Autopilot({ c, busy, onBack, onEditPlan, onSettings, onResetMemory, onRevoke }: {
+export function Autopilot({ c, busy, top, onEditPlan, onUpdate, onSettings, onResetMemory, onRevoke }: {
   c: Customer; busy: boolean;
-  onBack: () => void;
+  top?: ReactNode;
   onEditPlan: () => void;
+  onUpdate: (c: Customer) => void;
   onSettings: (s: Partial<Pick<Customer, "mode" | "consent_help" | "consent_product">>) => void;
   onResetMemory: () => void;
   onRevoke: (rule: number) => void;
 }) {
   const goals: PlanGoal[] = c.goals;
+  const [pending, setPending] = useState(false);
+  const addGoal = (s: Suggestion) => {
+    const goal: DraftGoal = { title: s.title, type: s.type, horizon: s.horizon, target_eur: s.target_eur, deadline: s.deadline,
+                              priority: goals.length + 1, monthly_eur: 0 };
+    setPending(true);
+    api.addGoal(c.id, goal).then(onUpdate).catch((e: Error) => toast.error(e.message)).finally(() => setPending(false));
+  };
   return (
     <>
-      <PageBar title="Autopilot" onBack={onBack} />
+      <PageBar title="Autopilot" />
       <div className="screen">
+        {top}
+        {c.suggestions.length > 0 && goals.length < 5 && (
+          <section aria-labelledby="suggested-paths">
+            <h2 className="section-title" id="suggested-paths">Autopilot suggests</h2>
+            <div className="list">
+              {c.suggestions.map((s) => (
+                <div className="row suggestion" key={s.key}>
+                  <div className="row-main wrap">
+                    <div><strong>{s.title}</strong></div>
+                    <div className="meta num">{eur(s.target_eur, true)} by {month(s.deadline)}</div>
+                    <div className="small muted">{s.reason}</div>
+                  </div>
+                  <button className="btn secondary" type="button" disabled={busy || pending} onClick={() => addGoal(s)}><Plus size={16} /> Add</button>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
         <section>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <h2 className="section-title" style={{ margin: 0 }}>Your flight plan</h2>
-            <button className="btn-text" onClick={onEditPlan}><Plane size={16} /> {goals.length ? "Edit" : "Plan"}</button>
+            <h2 className="section-title" style={{ margin: 0 }}>Your goals</h2>
+            <button className="btn-text" onClick={onEditPlan}><Target size={16} /> {goals.length ? "Edit" : "Set goals"}</button>
           </div>
           {goals.length ? (
             <div style={{ display: "grid", gap: 8, marginTop: 8 }}>
@@ -38,7 +66,7 @@ export function Autopilot({ c, busy, onBack, onEditPlan, onSettings, onResetMemo
             <div className="empty" style={{ marginTop: 8 }}>
               <strong style={{ color: "var(--navy)" }}>Where do you want to fly to?</strong>
               <span className="small muted">Set your goals in two minutes. Autopilot then looks out for what gets you there.</span>
-              <button className="btn" style={{ justifySelf: "start", marginTop: 8 }} onClick={onEditPlan}>Plan my route</button>
+              <button className="btn" style={{ justifySelf: "start", marginTop: 8 }} onClick={onEditPlan}>Set my goals</button>
             </div>
           )}
         </section>

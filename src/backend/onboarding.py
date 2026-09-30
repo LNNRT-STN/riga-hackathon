@@ -1,4 +1,4 @@
-"""'Where do you want to fly to?' Goal sparring with an LLM; an offline extractor keeps the demo working without a key."""
+"""Goal sparring with an LLM; an offline extractor keeps the demo working without a key."""
 from __future__ import annotations
 
 import json
@@ -12,26 +12,30 @@ from engine import pace_for, validate_goals
 
 MAX_TURNS = 6
 
-SYSTEM = """You are the onboarding guide of KBC Autopilot, a calm helper in a Belgian banking app.
-Goal: in a few short turns, agree on the customer's financial goals ("flight plan").
-- "now" goals (stopovers) are within 6 months; "long" goals (destinations) are later.
-- Ask about both. One short question per turn. Max 60 words per reply. Plain, warm English. No sales, no products, no exclamation marks.
-- Use the customer summary to sanity-check targets. If a deadline is unrealistic at their usual monthly room, say so kindly and suggest a realistic date.
+SYSTEM = """You are the sparring partner of KBC Autopilot, a calm helper in a Belgian banking app.
+Goal: in a few short turns, agree on concrete goals: what the customer saves for, how much, by when, and how much a month.
+- "now" goals are within 6 months; "long" goals are later.
+- Spar, don't interrogate: challenge a vague goal with one concrete number or date. One short question per turn. Max 60 words per reply.
+  Plain, warm English. No sales, no products, no exclamation marks.
+- Use the customer summary to sanity-check targets. If a deadline is unrealistic at their usual monthly room, say so kindly and suggest a realistic date or monthly amount.
+- "suggestions" in the summary are goals Autopilot noticed in their life. Mention at most one when relevant; add it only if the customer says yes.
 - Only financial goals. Politely steer back if they talk about something else.
 Customer summary (pseudonymised): {summary}
+Current draft (the customer may have edited amounts, dates or monthly amounts by hand; keep those unless they change them): {draft}
 Today is {today}.
 Always answer with only this JSON:
 {{"reply": "...", "goals": [{{"horizon": "now|long", "type": "save_for|buffer|avoid_overdraft|pay_off|budget_cap|raise_capital|care_for_family|other",
-"title": "max 40 chars", "target_eur": 1234, "deadline": "YYYY-MM-DD", "priority": 1}}]}}
-"goals" is the full current draft (max 5), keep earlier goals unless the customer changes them."""
+"title": "max 40 chars", "target_eur": 1234, "deadline": "YYYY-MM-DD", "priority": 1, "monthly_eur": 0}}]}}
+"goals" is the full current draft (max 5). "monthly_eur" is the customer's own monthly amount, 0 when they left it to Autopilot."""
 
 
-def turn(history: list[dict], summary: dict, live: bool) -> dict:
-    """One onboarding turn. history = [{"role": "user"|"assistant", "content": str}, ...]."""
+def turn(history: list[dict], summary: dict, live: bool, draft: list[dict] | None = None) -> dict:
+    """One onboarding turn. history = [{"role": "user"|"assistant", "content": str}, ...]; draft = current goals (validated)."""
+    draft = draft or []
     user_turns = sum(1 for m in history if m["role"] == "user")
-    system = SYSTEM.format(summary=json.dumps(summary), today=TODAY)
+    system = SYSTEM.format(summary=json.dumps(summary), today=TODAY, draft=json.dumps(draft, default=str))
     for _ in range(2):   # one retry if the model returns something invalid
-        out = ai.llm_json(system, history, live)
+        out = ai.llm_json(system, history, live, model=ai.SPAR_MODEL)
         if out is None:
             break
         try:
@@ -41,7 +45,7 @@ def turn(history: list[dict], summary: dict, live: bool) -> dict:
                 return result(reply, goals, summary, user_turns, "live")
         except ValueError:
             continue
-    reply, goals = offline(history, summary)
+    reply, goals = offline(history, summary, draft)
     return result(reply, goals, summary, user_turns, "offline")
 
 
@@ -50,13 +54,13 @@ def result(reply: str, goals: list[dict], summary: dict, user_turns: int, source
 
 
 def plan(goals: list[dict], summary: dict) -> list[dict]:
-    """Attach the pace and ETA the flight plan shows. Maths in code, never in the model."""
+    """Attach the pace and expected date the goal list shows. Maths in code, never in the model."""
     paces = pace_for(goals, summary["monthly_room"])
     out = []
     for g, pace in zip(goals, paces):
         eta = add_months(TODAY, math.ceil(g["target_eur"] / pace)) if pace > 0 else None
-        out.append({**g, "deadline": str(g["deadline"]), "monthly_eur": pace, "eta": str(eta) if eta else None,
-                    "on_course": bool(eta and eta <= g["deadline"])})
+        out.append({**g, "deadline": str(g["deadline"]), "monthly_eur": float(g.get("monthly_eur") or 0), "pace_eur": pace,
+                    "eta": str(eta) if eta else None, "on_course": bool(eta and eta <= g["deadline"])})
     return out
 
 
@@ -106,11 +110,24 @@ def amounts(text: str) -> list[tuple[int, float]]:
     return out
 
 
-def offline(history: list[dict], summary: dict) -> tuple[str, list[dict]]:
+def offline(history: list[dict], summary: dict, draft: list[dict] | None = None) -> tuple[str, list[dict]]:
+    # the draft (manual edits) comes first; only the last message can change it, earlier turns are already in it
     goals: dict[str, dict] = {}
-    last = None
-    for msg in (m["content"] for m in history if m["role"] == "user"):
+    added = []   # suggestions taken into the plan this turn, named in the reply
+    for g in draft or []:   # keyed like TOPICS so "my house" later edits "Own home" instead of adding a twin
+        key = next((t[0] for t in TOPICS if t[2].lower() == g["title"].lower()), g["title"].lower())
+        goals[key] = {**g, "monthly_eur": float(g.get("monthly_eur") or 0)}
+    last = next(reversed(goals), None)   # a bare "make it 2500" edits the newest draft goal
+    msgs = [m["content"] for m in history if m["role"] == "user"]
+    for msg in msgs[-1:] if goals else msgs:
         low = msg.lower()
+        if re.search(r"\b(yes|ok|sure|add)\b", low):   # "yes, add the ring" takes a suggestion into the plan
+            for sg in summary.get("suggestions", []):
+                if any(w in low for w in sg["title"].lower().split()) and sg["title"].lower() not in goals:
+                    goals[sg["title"].lower()] = {"title": sg["title"], "type": sg["type"], "target_eur": sg["target_eur"],
+                                                  "deadline": date.fromisoformat(sg["deadline"]), "monthly_eur": 0.0}
+                    last = sg["title"].lower()
+                    added.append(sg["title"])
         found = sorted((low.find(w), t) for t in TOPICS for w in t[3] if w in low)
         seen = []
         for pos, t in found:
@@ -122,7 +139,7 @@ def offline(history: list[dict], summary: dict) -> tuple[str, list[dict]]:
             key, gtype, title, _, target, months = t
             g = goals.get(key) or {"title": title, "type": gtype,
                                    "target_eur": target or round(3 * summary["monthly_spend"], -2),
-                                   "deadline": add_months(TODAY, months)}
+                                   "deadline": add_months(TODAY, months), "monthly_eur": 0.0}
             if a := amounts(clause):
                 g["target_eur"] = a[0][1]
             if d := when(clause):
@@ -135,31 +152,36 @@ def offline(history: list[dict], summary: dict) -> tuple[str, list[dict]]:
             if a := amounts(msg):
                 goals[last]["target_eur"] = a[0][1]
 
-    draft = []
+    out = []
     for p, g in enumerate(list(goals.values())[:5], start=1):
-        deadline = max(g["deadline"], add_months(TODAY, 1))
-        draft.append({"title": g["title"], "type": g["type"], "target_eur": g["target_eur"], "deadline": deadline,
-                      "priority": p, "horizon": "now" if (deadline - TODAY).days <= 183 else "long"})
-    return reply_for(draft, summary), draft
+        deadline = max(date.fromisoformat(str(g["deadline"])), add_months(TODAY, 1))
+        out.append({"title": g["title"], "type": g["type"], "target_eur": g["target_eur"], "deadline": deadline,
+                    "priority": p, "horizon": "now" if (deadline - TODAY).days <= 183 else "long", "monthly_eur": g["monthly_eur"]})
+    reply = reply_for(out, summary)
+    return (f"Added {', '.join(added)}. " + reply if added else reply), out
 
 
 def reply_for(draft: list[dict], summary: dict) -> str:
     if not draft:
+        if summary.get("suggestions"):
+            sg = summary["suggestions"][0]
+            return (f"Where do you want to fly to? One goal I noticed: {sg['title']}, about {eur(sg['target_eur'], 0)} "
+                    f"by {fmt_month(date.fromisoformat(sg['deadline']), 'en')}. Want to add it, or start with something else?")
         return ("Where do you want to fly to? Tell me what you're working towards, soon and later. "
                 "For example a trip this winter, a safety buffer, or your own home one day.")
     room = summary["monthly_room"]
     for g, pace in zip(draft, pace_for(draft, room)):
         eta = add_months(TODAY, math.ceil(g["target_eur"] / pace)) if pace > 0 else None
         if eta is None:
-            return (f"Right now there's little room left at the end of the month, so {g['title']} has no arrival date yet. "
+            return (f"Right now there's little room left at the end of the month, so {g['title']} has no expected date yet. "
                     "Want to start small, or first build a safety buffer?")
         if eta > g["deadline"]:
-            return (f"At your usual spare {eur(room, 0)} a month, {g['title']} arrives around {fmt_month(eta, 'en')}, "
+            return (f"At your usual spare {eur(room, 0)} a month, {g["title"]} is reached around {fmt_month(eta, "en")}, "
                     f"later than {fmt_month(g['deadline'], 'en')}. Aim for {fmt_month(eta, 'en')}, or pick a smaller target?")
     has_now = any(g["horizon"] == "now" for g in draft)
     has_long = any(g["horizon"] == "long" for g in draft)
     if not has_now:
-        return "Good destination. Anything coming up in the next few months, a stopover on the way?"
+        return "Good long-term goal. Anything coming up in the next few months?"
     if not has_long:
-        return "Nice stopover. And further ahead, where would you like to be in a few years?"
-    return "Your flight plan is ready. Check the route, adjust anything, and confirm when it looks right."
+        return "Good. And further ahead, where would you like to be in a few years?"
+    return "Your goals are set. Check the amounts and dates, adjust anything, and save when it looks right."

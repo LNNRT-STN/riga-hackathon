@@ -39,7 +39,7 @@ class Txn:
 @dataclass
 class Goal:
     id: int
-    horizon: str           # "now" (stopover) | "long" (destination)
+    horizon: str           # "now" (within 6 months) | "long"
     type: str
     title: str
     target_eur: float

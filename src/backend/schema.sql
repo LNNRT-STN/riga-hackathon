@@ -31,7 +31,8 @@ CREATE TABLE txn (
   day TEXT NOT NULL,
   amount REAL NOT NULL,                        -- negative = money out
   counterparty TEXT NOT NULL,
-  description TEXT NOT NULL DEFAULT ''
+  description TEXT NOT NULL DEFAULT '',
+  peer_id INTEGER                              -- the other customer in a Payconiq payment, else NULL
 );
 CREATE INDEX txn_customer ON txn(customer_id, day);
 

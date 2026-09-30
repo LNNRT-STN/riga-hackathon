@@ -2,7 +2,7 @@
 
 A proof of concept for the KBC hackathon case: **a new way KBC understands, supports and guides 2.3M customers**.
 
-> You tell Autopilot where you want to fly to. It watches for situations that matter to your goals, shows **one** card only
+> You set your goals with Autopilot (it suggests some from your own life). It watches for situations that matter to your goals, shows **one** card only
 > when it clearly helps, stays quiet otherwise, and never acts without your approval.
 
 **Situations, not segments.** Every customer goes through one engine. Each situation (cash shortage ahead, bill went up,

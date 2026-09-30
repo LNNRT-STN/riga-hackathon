@@ -48,7 +48,7 @@ export function Start({ c, onAutopilot, onPrimary, onRespond, onWhy, busy }: {
         </section>
 
         <section aria-labelledby="for-you">
-          <h2 className="section-title" id="for-you">For you</h2>
+          <h2 className="section-title" id="for-you" tabIndex={-1}>For you</h2>
           {c.card ? (
             <Tip card={c.card} busy={busy} onPrimary={onPrimary} onRespond={onRespond} onWhy={onWhy} />
           ) : (

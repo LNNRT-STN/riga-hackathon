@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ChevronLeft, Search } from "lucide-react";
+import { ArrowRight, ChevronLeft, Code, Search, Sparkles } from "lucide-react";
 import { api, type Engine, type Screened } from "./api";
 import { eur } from "./format";
 
@@ -25,12 +25,17 @@ export function BehindTheScenes({ onBack }: { onBack: () => void }) {
   if (!data) return <main className="bts"><p className="muted">{error ?? "Running the engine over 2.000 customers"}</p></main>;
   const f = data.funnel;
   const k = f.scale / f.customers;
-  const steps = [
-    ["Synthetic customers", f.customers, "Everyone goes through the same engine"],
-    ["A possible situation", f.with_candidate, "Cheap rules on their own data"],
-    ["Confirmed", f.confirmed, "Typed yes/no AI check where rules can't tell"],
-    ["Shown one card", f.shown, "Beat 'do nothing' and passed consent"],
-  ] as const;
+  const q = data.catalogue.find((s) => s.question)?.question?.replace("{text}", "…") ?? "";
+  const stages = [
+    { ai: false, tech: "Python", title: "Spot", text: "Plain rules read each customer's own transactions and goals.",
+      code: "for s in SITUATIONS:\n  s.detect(features)", n: f.with_candidate, unit: "have a possible situation" },
+    { ai: true, tech: "Jev", title: "Check", text: "Where rules can't tell, Jev answers one typed yes/no question.",
+      code: `${q}\n→ yes · 0,93`, n: f.confirmed, unit: "confirmed" },
+    { ai: false, tech: "Python", title: "Decide", text: "Money maths in code. The card must beat doing nothing.",
+      code: "€ for customer\n× goal weight\n× confidence\n− annoyance\n> do-nothing bar", n: f.shown, unit: "shown one card" },
+    { ai: true, tech: "LLM", title: "Word", text: "An LLM rewrites the card in plain words. Amounts are locked.",
+      code: "every € amount kept?\nno pushy words?\nelse: use the template", n: f.shown, unit: "cards worded" },
+  ];
   const maxShown = Math.max(...f.situations.map((s) => s.shown), 1);
 
   return (
@@ -43,22 +48,31 @@ export function BehindTheScenes({ onBack }: { onBack: () => void }) {
         (AI: {f.ai_mode}).
       </p>
 
-      <section className="bts-grid">
-        <div className="panel">
-          <h2 className="section-title">Funnel</h2>
-          {steps.map(([label, n, note]) => (
-            <div key={label} className="bar-row">
-              <div className="bar-head"><span>{label}</span><strong className="num">{nf.format(n)}</strong></div>
-              <div className="bar"><span style={{ width: `${(n / f.customers) * 100}%` }} /></div>
-              <div className="meta">{note}</div>
-            </div>
-          ))}
-          <div className="msg info" style={{ marginTop: 12 }}>
-            <span><strong>{Math.round((1 - f.shown / f.customers) * 100)}% left alone on purpose.</strong>
-              Silence is the default; a message has to earn its place.</span>
-          </div>
+      <section className="panel how" aria-labelledby="how-title">
+        <div className="how-head">
+          <h2 id="how-title" className="section-title">How it works</h2>
+          <span className="meta"><span className="tech"><Code size={14} /> Python</span> is code, <span className="tech ai"><Sparkles size={14} /> AI</span> only
+            answers or rewords</span>
         </div>
+        <ol className="flow">
+          {stages.map((st, i) => (
+            <li key={st.title} className={st.ai ? "ai" : undefined}>
+              <span className={`tech${st.ai ? " ai" : ""}`}>{st.ai ? <Sparkles size={14} /> : <Code size={14} />} {st.tech}</span>
+              <h3>{st.title}</h3>
+              <p className="small">{st.text}</p>
+              <code>{st.code}</code>
+              <p className="flow-n"><strong className="num">{nf.format(st.n)}</strong> <span className="meta">{st.unit}</span></p>
+              {i < stages.length - 1 && <ArrowRight className="flow-arrow" size={20} aria-hidden="true" />}
+            </li>
+          ))}
+        </ol>
+        <p className="small muted how-foot">
+          Of {nf.format(f.customers)} synthetic customers, <strong>{Math.round((1 - f.shown / f.customers) * 100)}% are left alone on purpose</strong>.
+          No AI key? Keyword checks and templates take over, so every step still runs.
+        </p>
+      </section>
 
+      <section className="bts-grid">
         <div className="panel">
           <h2 className="section-title">Cards shown per situation</h2>
           {f.situations.map((s) => (

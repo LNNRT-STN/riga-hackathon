@@ -292,21 +292,28 @@ def validate_goals(raw, today: date = TODAY) -> list[dict]:
             target = float(g.get("target_eur"))
             deadline = date.fromisoformat(str(g.get("deadline")))
             priority = int(g.get("priority", len(out) + 1))
+            monthly = float(g.get("monthly_eur") or 0)
         except (TypeError, ValueError):
             raise ValueError("bad amount, date or priority")
         if not title or gtype not in GOAL_TYPES or horizon not in ("now", "long"):
             raise ValueError("bad title, type or horizon")
-        if not (0 < target <= 10_000_000) or deadline <= today or not 1 <= priority <= 5:
-            raise ValueError("amount, date or priority out of range")
+        if not (0 < target <= 10_000_000) or deadline <= today or not 1 <= priority <= 5 or not 0 <= monthly <= 100_000:
+            raise ValueError("amount, date, priority or monthly amount out of range")
         out.append({"title": title, "type": gtype, "horizon": horizon, "target_eur": round(target, 2),
-                    "deadline": deadline, "priority": priority})
+                    "deadline": deadline, "priority": priority, "monthly_eur": round(monthly, 2)})
     return out
 
 
 def pace_for(goals: list[dict], monthly_room: float) -> list[float]:
-    """Split the customer's usual monthly room over goals: 60% to priority 1, the rest shared."""
+    """Split the customer's usual monthly room over goals: 60% to priority 1, the rest shared.
+    A goal with its own monthly_eur (the customer's choice) keeps it and is left out of the split."""
     if not goals:
         return []
+    own = [float(g.get("monthly_eur") or 0) for g in goals]
+    if any(own):
+        rest = [g for g, m in zip(goals, own) if not m]
+        shared = iter(pace_for(rest, max(0.0, monthly_room - sum(own))))
+        return [m if m else next(shared) for m in own]
     ranked = sorted(range(len(goals)), key=lambda i: goals[i]["priority"])
     share = [0.0] * len(goals)
     rest = ranked[1:]

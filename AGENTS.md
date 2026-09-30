@@ -20,13 +20,14 @@ This is **not a feature-building challenge**.
 Do not optimize for the number of features. Optimize for demonstrating a compelling **personalization system**.
 ## Current state (KBC Autopilot MVP)
 
-Customers say where they want to go ("Where do you want to fly to?"). Autopilot watches for situations that matter to
-those goals and shows **one** card only when it beats doing nothing. It never acts without approval. English only for now.
+Customers set concrete goals (amount, monthly pace, date); Autopilot suggests goals from their own life signals and their
+Payconiq circle, and an LLM spars about realism. It then watches for situations that matter to those goals and shows **one**
+card only when it beats doing nothing. The flight metaphor is one hook ("Where do you want to fly to?"), nothing more. It never acts without approval. English only for now.
 All data is synthetic and every action is simulated.
 
 | Path | What it is |
 | --- | --- |
-| `src/backend/` | Python **standard library only** (no pip installs). `server.py` (HTTP + API), `engine.py` (features, scoring, rules), `situations.py` (the catalogue: one row per situation), `ai.py` (Jev + LLM via OpenRouter), `onboarding.py`, `seed.py` (5 demo + 2,000 synthetic customers), `schema.sql`, `test_engine.py`. |
+| `src/backend/` | Python **standard library only** (no pip installs). `server.py` (HTTP + API), `engine.py` (features, scoring, rules), `situations.py` (the catalogue: one row per situation), `paths.py` (suggested goals: one row per life event), `ai.py` (Jev + LLM via OpenRouter), `onboarding.py`, `seed.py` (7 demo + 2,000 synthetic customers), `schema.sql`, `test_engine.py`. |
 | `src/frontend/` | React + Vite + TypeScript, styled from `DESIGN.md`. Libraries: Radix UI, Lucide icons, sonner. |
 | `Dockerfile` | One container for Google Cloud Run (builds the frontend, serves it from the Python server). |
 | `PRODUCT.md`, `DESIGN.md` | Product truth and visual system. Read both before UI work. |
@@ -72,13 +73,15 @@ export OPENROUTER_API_KEY=...             # current terminal only
 python3 server.py
 ```
 
-Without a key, everything works on the offline fallback (keyword checks, templates, rule-based goal extraction).
+The sparring model is `SPAR_MODEL` (default `anthropic/claude-opus-5.5`), card wording `LLM_MODEL`. Without a key, everything works on the offline fallback (keyword checks, templates, rule-based goal extraction).
 `python3 seed.py --warm` pre-computes AI answers into `src/backend/ai_cache.json`; that file holds synthetic data only and
 may be committed. On Cloud Run the key comes from Secret Manager (see `README.md`).
 
 ## Rules for changes
 
 - **New situation = one row in `src/backend/situations.py`.** The engine has no situation-specific code; keep it that way.
+- **New suggested goal = one row in `src/backend/paths.py`.** Circle evidence stays aggregated and anonymous.
+- Say "goals", "expected date", "on track". The flight metaphor appears once ("Where do you want to fly to?"); the brand word is Autopilot.
 - Money maths lives in code, never in the AI. The LLM only rewords a decision and may not change amounts or add urgency.
 - Customer value ranks cards; KBC value is logged only. Product cards stay labelled and compared honestly.
 - Human in the loop: every money movement goes through the review screen; "Always do this" only between own accounts, capped and revocable.

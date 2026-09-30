@@ -14,3 +14,6 @@ src/frontend/dist/
 *.db
 *.db-wal
 *.db-shm
+
+# Local UI review screenshots
+src/frontend/shots/

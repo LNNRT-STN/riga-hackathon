@@ -10,12 +10,13 @@ import re
 import threading
 import time
 from collections import defaultdict, deque
-from datetime import date
+from datetime import date, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 import ai
 import onboarding
+import paths
 import seed
 from core import MODES, TODAY, Goal, Txn, add_months, eur, fmt_date
 from engine import (candidates, compute_goals, decide, features, fmt_params, pace_for, questions,
@@ -57,10 +58,19 @@ def load(cid: int):
               for e in q("SELECT type, day, data FROM event WHERE customer_id = ?", cid)]
     goals = [Goal(g["id"], g["horizon"], g["type"], g["title"], g["target_eur"], g["saved_eur"], d(g["deadline"]),
                   g["priority"], g["monthly_eur"]) for g in q("SELECT * FROM goal WHERE customer_id = ? ORDER BY priority", cid)]
+    c["suggestions"] = paths.suggest(txns, peer_goals(cid), goals)
     prefs = {p["situation_id"]: {**p, "snoozed_until": d(p["snoozed_until"])}
              for p in q("SELECT * FROM pref WHERE customer_id = ?", cid)}
     resolved = {r["instance_key"] for r in q("SELECT instance_key FROM resolved WHERE customer_id = ?", cid)}
     return c, txns, events, goals, prefs, resolved
+
+
+def peer_goals(cid: int) -> list[dict]:
+    """Goals of people this customer paid with Payconiq in the last 90 days. Titles and types only, no names,
+    and only from peers who allow Autopilot to use their data."""
+    since = str(TODAY - timedelta(days=90))
+    return q("SELECT DISTINCT g.title, g.type FROM txn t JOIN customer p ON p.id = t.peer_id JOIN goal g ON g.customer_id = p.id "
+             "WHERE t.customer_id = ? AND t.day >= ? AND p.consent_help = 1", cid, since)
 
 
 def ai_state(f) -> dict:
@@ -76,7 +86,7 @@ def evaluate(cid: int, live: bool = True):
     qs, fallbacks = questions(f, cands)
     probs, source = ai.screen(ai_state(f), qs, fallbacks, live)
     card, opts, bar = decide(c, f, cands, probs, prefs, resolved)
-    return c, txns, f, cands, card, opts, bar, source, prefs
+    return c, txns, f, cands, card, opts, bar, source, prefs, qs, probs
 
 
 # ---------- view model ----------
@@ -113,7 +123,7 @@ def card_json(card, f, source: str, live: bool) -> dict | None:
 
 
 def view(cid: int, live: bool = True) -> dict:
-    c, txns, f, cands, card, opts, bar, source, prefs = evaluate(cid, live)
+    c, txns, f, cands, card, opts, bar, source, prefs, qs, probs = evaluate(cid, live)
     goals = compute_goals(f.goals)
     rules = q("SELECT r.*, g.title FROM rule r JOIN goal g ON g.id = r.goal_id WHERE r.customer_id = ? AND r.active = 1", cid)
     considered = [{"name": o.situation.name, "status": o.status, "status_text": STATUS_TEXT[o.status],
@@ -133,18 +143,23 @@ def view(cid: int, live: bool = True) -> dict:
             memory.append(f"You accepted “{name}” {p['accepted']}×. Similar help ranks a bit higher.")
     if c["product_pause_until"] and c["product_pause_until"] > TODAY:
         memory.append(f"No product suggestions until {fmt_date(c['product_pause_until'], 'en')}.")
+    shown = card_json(card, f, source, live)
     return {
         "id": cid, "name": c["display_name"], "persona": c["persona"], "onboarded": bool(c["onboarded"]),
+        "is_try": cid in seed.TRY_IDS,
         "balance": round(c["balance"], 2), "savings": round(c["savings"], 2),
         "mode": c["mode"], "consent_help": bool(c["consent_help"]), "consent_product": bool(c["consent_product"]),
         "value_created": round(c["value_created"], 2),
         "transactions": [{"day": str(t.day), "amount": t.amount, "counterparty": t.counterparty}
                          for t in sorted(txns, key=lambda t: t.day, reverse=True)[:6]],
-        "card": card_json(card, f, source, live),
+        "card": shown,
+        "pipeline": pipeline(c, txns, f, cands, card, opts, bar, source, qs, probs, shown),
         "considered": considered, "bar": bar,
         "goals": [{"id": g.id, "title": g.title, "horizon": g.horizon, "type": g.type, "target": g.target_eur,
                    "saved": g.saved_eur, "deadline": str(g.deadline), "eta": str(g.eta) if g.eta else None,
-                   "on_course": g.on_course, "reached": g.reached, "monthly": g.monthly_eur} for g in goals],
+                   "on_course": g.on_course, "reached": g.reached, "monthly": g.monthly_eur, "priority": g.priority}
+                  for g in goals],
+        "suggestions": c["suggestions"],
         "rules": [{"id": r["id"], "goal": r["title"], "keep": r["keep"], "cap": r["cap"],
                    "next_run": str(add_months(TODAY.replace(day=1), 1)),
                    "preview": round(rule_amount(r, c["balance"], 0), 2)} for r in rules],
@@ -154,13 +169,82 @@ def view(cid: int, live: bool = True) -> dict:
     }
 
 
+def pipeline(c, txns, f, cands, card, opts, bar, source, qs, probs, shown) -> list[dict]:
+    """The 7 steps behind one decision, in plain words. Only reads what evaluate() already produced."""
+    def item(label, value, tone="info"):
+        return {"label": label, "value": value, "tone": tone}
+
+    def step(key, title, summary, items):
+        return {"key": key, "title": title, "summary": summary, "items": items[:8]}
+
+    products = [k for k in f.products if k != "mutualiteit"]
+    signals = [item("Payments", f"{len(txns)} in the last 3 months"), item("PIN resets", f"{f.pin_resets_30d} in 30 days"),
+               item("Goals", str(len(f.goals))), item("Current account", eur(f.balance)), item("Savings", eur(f.savings)),
+               item("Products", ", ".join(products) or "none"),
+               item("Health insurer", f.products.get("mutualiteit", "unknown"))]
+    low_day = fmt_date(f.forecast_min_day, "en") if f.forecast_min_day else "n/a"
+    understood = [item("Money in a month", eur(f.monthly_income)), item("Money out a month", eur(f.monthly_spend)),
+                  item("Lowest point, next 14 days", f"{eur(f.forecast_min)} on {low_day}", "no" if f.forecast_min < 0 else "ok"),
+                  item("Room after scheduled payments", eur(f.surplus), "ok" if f.surplus >= 100 else "info")]
+    understood += [item("Bill went up", f"{r['cp']}: {eur(r['old'])} → {eur(r['new'])}", "no") for r in f.price_rises]
+    understood += [item("New payee", f"{p['cp']} {eur(p['amount'])}") for p in f.new_payees]
+    if f.pin_resets_30d:
+        understood.append(item("PIN resets", f"{f.pin_resets_30d}, {'same device' if f.same_device else 'different devices'}"))
+    if f.maturity:
+        understood.append(item("Matures", f"{f.maturity['what']} of {eur(f.maturity['amount'])} on {fmt_date(f.maturity['day'], 'en')}"))
+
+    n = len({s.id for s, _ in cands})
+    cand_items = [item(s.name, "; ".join(inst.evidence)) for s, inst in cands]
+
+    who = "Jev" if source == "jev" else "offline check"
+    ai_items = []
+    for qid, qv in qs.items():
+        p = probs.get(qid, 0.0)
+        ai_items.append(item(qv["instructions"], f"{p:.0%} yes ({who})", "ok" if p >= 0.5 else "no"))
+    ai_summary = (f"{len(qs)} yes/no question{'s' if len(qs) != 1 else ''}, answered by "
+                  f"{'Jev' if source == 'jev' else 'offline keyword rules'}") if qs else "No questions needed: rules on your own data are enough"
+
+    ranked = sorted(opts, key=lambda o: -o.score)
+    score_items = [item(o.situation.name, f"{eur(o.customer_eur, 0)} × {o.goal_weight:g} goal × {o.confidence:.2f} sure − "
+                        f"{o.annoyance:g} = {o.score:.1f} vs bar {bar:g}", "ok" if o.score > bar else "no") for o in ranked]
+    beat = sum(o.score > bar for o in opts)
+
+    control_items = [item(o.situation.name, STATUS_TEXT[o.status], "ok" if o.status == "shown" else "no") for o in ranked]
+    controls = (f"{c['mode'].capitalize()} mode · help suggestions {'on' if c['consent_help'] else 'off'} · "
+                f"product suggestions {'on' if c['consent_product'] else 'off'}")
+
+    if shown:
+        s, p = card.situation, fmt_params(card.inst.params)
+        templ = shown["title"] == s.title.format(**p) and shown["body"] == s.body.format(**p)
+        decision = step("decision", "Decision", f"Showing one card: {shown['title']}", [
+            item("Situation", s.name, "ok"), item("Benefit for you", shown["benefit"]),
+            item("Wording", "Fixed template" if templ else "Reworded by the AI, amounts checked"),
+            item("Money moves", "Only after you review and approve")])
+    else:
+        decision = step("decision", "Decision", "Staying quiet: nothing beat doing nothing",
+                        [item(o.situation.name, STATUS_TEXT[o.status], "no") for o in ranked])
+    return [
+        step("signals", "Signals", f"{len(txns)} payments, {f.pin_resets_30d} log-in events, {len(f.goals)} goal{'' if len(f.goals) == 1 else 's'}", signals),
+        step("understood", "What Autopilot understood",
+             f"{eur(f.monthly_income, 0)} in, {eur(f.monthly_spend, 0)} out a month", understood),
+        step("candidates", "Possible situations",
+             f"{n} of {len(SITUATIONS)} situations could apply" if n else f"None of the {len(SITUATIONS)} situations fit right now",
+             cand_items),
+        step("ai_check", "AI check", ai_summary, ai_items),
+        step("score", "Score vs doing nothing",
+             f"{beat} of {len(opts)} beat doing nothing (bar {bar:g})" if opts else "Nothing to score", score_items),
+        step("controls", "Your controls", controls, control_items),
+        decision,
+    ]
+
+
 # ---------- actions ----------
 
 def respond(cid: int, body: dict) -> dict:
     key, response = body.get("instance_key"), body.get("response")
     if response not in ("approve", "later", "not_relevant") or not isinstance(key, str):
         raise ValueError("bad response")
-    c, txns, f, cands, card, opts, bar, source, prefs = evaluate(cid, live=False)
+    c, txns, f, cands, card, opts, bar, source, prefs, qs, probs = evaluate(cid, live=False)
     match = next(((s, i) for s, i in cands if i.key == key), None)
     if not match:
         raise ValueError("this suggestion no longer applies")
@@ -229,7 +313,7 @@ def apply(cid: int, c: dict, s, inst, o, option: dict, always: bool) -> tuple[di
     saving = s.monthly_saving(None, inst) if s.monthly_saving else 0
     if saving > 0 and o.goal:
         db.execute("UPDATE goal SET monthly_eur = monthly_eur + ? WHERE id = ?", (saving, o.goal.id))
-        lines.append(f"The {eur(saving)} a month you save goes to {o.goal.title}. Its arrival date moves closer.")
+        lines.append(f"The {eur(saving)} a month you save goes to {o.goal.title}. You get there sooner.")
     return {"type": kind, "lines": lines, "advisor": option.get("advisor")}, note
 
 
@@ -239,18 +323,38 @@ def summary(cid: int) -> dict:
     f = features(txns, c["balance"], c["savings"], c["products"], events, goals)
     room = max(0.0, round(f.monthly_income - f.monthly_spend, -1))
     return {"monthly_income": round(f.monthly_income, -1), "monthly_spend": round(f.monthly_spend, -1),
-            "monthly_room": room, "savings": round(c["savings"], -2)}
+            "monthly_room": room, "savings": round(c["savings"], -2),
+            "suggestions": [{k: s[k] for k in ("title", "type", "target_eur", "deadline", "reason")} for s in c["suggestions"]]}
 
 
 def save_goals(cid: int, raw) -> dict:
+    """Replace the plan. Progress (saved_eur) carries over by title; standing rules are reset with the plan."""
     goals = validate_goals(raw)
     paces = pace_for(goals, summary(cid)["monthly_room"])
+    saved = {r["title"].lower(): r["saved_eur"] for r in q("SELECT title, saved_eur FROM goal WHERE customer_id = ?", cid)}
     db.execute("DELETE FROM rule WHERE customer_id = ?", (cid,))
     db.execute("DELETE FROM goal WHERE customer_id = ?", (cid,))
     db.executemany("INSERT INTO goal (customer_id, horizon, type, title, target_eur, saved_eur, deadline, priority, "
-                   "monthly_eur) VALUES (?,?,?,?,?,0,?,?,?)",
-                   [(cid, g["horizon"], g["type"], g["title"], g["target_eur"], str(g["deadline"]), g["priority"], p)
-                    for g, p in zip(goals, paces)])
+                   "monthly_eur) VALUES (?,?,?,?,?,?,?,?,?)",
+                   [(cid, g["horizon"], g["type"], g["title"], g["target_eur"], saved.get(g["title"].lower(), 0),
+                     str(g["deadline"]), g["priority"], p) for g, p in zip(goals, paces)])
+    db.execute("UPDATE customer SET onboarded = 1 WHERE id = ?", (cid,))
+    db.commit()
+    return view(cid)
+
+
+def add_goal(cid: int, raw) -> dict:
+    """Append one goal (for example a suggestion) without touching the others or their rules."""
+    have = q("SELECT title FROM goal WHERE customer_id = ?", cid)
+    if len(have) >= 5:
+        raise ValueError("five goals is the maximum")
+    g = validate_goals([{**(raw if isinstance(raw, dict) else {}), "priority": len(have) + 1}])[0]
+    if g["title"].lower() in {r["title"].lower() for r in have}:
+        raise ValueError("you already have this goal")
+    pace = g["monthly_eur"] or pace_for([{"priority": 1}], summary(cid)["monthly_room"])[0] * 0.4
+    db.execute("INSERT INTO goal (customer_id, horizon, type, title, target_eur, saved_eur, deadline, priority, monthly_eur) "
+               "VALUES (?,?,?,?,?,0,?,?,?)", (cid, g["horizon"], g["type"], g["title"], g["target_eur"], str(g["deadline"]),
+                                             g["priority"], round(pace, 2)))
     db.execute("UPDATE customer SET onboarded = 1 WHERE id = ?", (cid,))
     db.commit()
     return view(cid)
@@ -286,6 +390,42 @@ def revoke_rule(cid: int, rid: int) -> dict:
     return view(cid)
 
 
+_try_next = 0
+
+
+def new_try() -> dict:
+    """A fresh "You" customer on the next id of the recycled try pool."""
+    global _try_next
+    cid = seed.TRY_IDS[_try_next % len(seed.TRY_IDS)]
+    _try_next += 1
+    for table, col in (("txn", "customer_id"), ("event", "customer_id"), ("goal", "customer_id"), ("rule", "customer_id"),
+                       ("pref", "customer_id"), ("resolved", "customer_id"), ("decision", "customer_id"),
+                       ("identity", "customer_id"), ("customer", "id")):
+        db.execute(f"DELETE FROM {table} WHERE {col} = ?", (cid,))   # names from a fixed tuple
+    seed.insert(db, cid, seed.baseline())
+    db.commit()
+    return view(cid)
+
+
+def scenario(cid: int, body: dict) -> dict:
+    """Replay one situation on a try customer: baseline + scenario. Goals and prefs are kept, so learning carries over."""
+    sid = body.get("id")
+    if cid not in seed.TRY_IDS:
+        raise ValueError("scenarios only work on your own try-it customer")
+    if not isinstance(sid, str) or sid not in seed.SCENARIOS:
+        raise ValueError("unknown scenario")
+    c = seed.baseline()
+    seed.SCENARIOS[sid]["apply"](c)
+    for table in ("txn", "event", "resolved"):
+        db.execute(f"DELETE FROM {table} WHERE customer_id = ?", (cid,))   # table from a fixed tuple
+    seed.insert_activity(db, cid, c)
+    db.execute("UPDATE customer SET balance = ?, savings = ?, products = ? WHERE id = ?",
+               (c["balance"], c["savings"], json.dumps(c["products"]), cid))
+    db.commit()
+    v = view(cid)
+    return {"view": v, "notification": v["card"] and {"title": v["card"]["title"], "body": v["card"]["benefit"]}}
+
+
 def reset_demo() -> dict:
     global db, _funnel
     _funnel = None
@@ -317,7 +457,7 @@ def funnel() -> dict:
     global _funnel
     if _funnel:
         return _funnel
-    ids = [r["id"] for r in q("SELECT id FROM customer WHERE id >= 100")]
+    ids = [r["id"] for r in q("SELECT id FROM customer WHERE id >= 100 AND id < 10000")]
     n = len(ids)
     stats = {"customers": n, "with_candidate": 0, "confirmed": 0, "shown": 0, "help": 0, "product": 0,
              "customer_eur": 0.0, "kbc_eur": 0.0, "trust": 0, "holdout": 0, "holdout_shown": 0, "questions": 0,
@@ -325,8 +465,7 @@ def funnel() -> dict:
     per = {s.id: {"id": s.id, "name": s.name, "audience": s.audience, "kind": s.kind, "detected": 0, "shown": 0}
            for s in SITUATIONS}
     for cid in ids:
-        c, txns, f, cands, card, opts, bar, source, prefs = evaluate(cid, live=False)
-        qs, _ = questions(f, cands)
+        c, txns, f, cands, card, opts, bar, source, prefs, qs, probs = evaluate(cid, live=False)
         stats["questions"] += len(qs)
         stats["tokens"] += len(json.dumps([ai_state(f), qs])) // 4 if qs else 0
         stats["holdout"] += c["holdout"]
@@ -367,7 +506,7 @@ def add_situation(text: str) -> dict:
     text = " ".join(text.split())[:200]
     if len(text) < 4:
         raise ValueError("describe the situation in a few words")
-    ids = [r["id"] for r in q("SELECT id FROM customer WHERE id >= 100 AND id % 10 = 0")]
+    ids = [r["id"] for r in q("SELECT id FROM customer WHERE id >= 100 AND id < 10000 AND id % 10 = 0")]
     low = text.lower()
     words = {w for w in re.findall(r"[a-z&'.-]{4,}", low)} | {m for k, v in SYNONYMS.items() if k in low for m in v}
     question = {"type": "noul", "instructions": f"Based on these recent payments, does this describe the customer: {text}?"}
@@ -391,7 +530,7 @@ def add_situation(text: str) -> dict:
     db.execute("INSERT INTO situation_custom (text, sample, matches, source) VALUES (?,?,?,?)",
                (text, len(ids), len(matched), source))
     db.commit()
-    keys = {r["id"]: r["pkey"] for r in q("SELECT id, pkey FROM customer WHERE id >= 100 AND id % 10 = 0")}
+    keys = {r["id"]: r["pkey"] for r in q("SELECT id, pkey FROM customer WHERE id >= 100 AND id < 10000 AND id % 10 = 0")}
     return {"text": text, "sample": len(ids), "matches": len(matched), "source": source,
             "estimate": round(len(matched) / max(1, len(ids)) * SCALE, -3),
             "examples": [{"customer": keys[cid], "confidence": round(p, 2), "evidence": hits[:3]}
@@ -467,6 +606,9 @@ class Handler(BaseHTTPRequestHandler):
                 if path == "/api/customers":
                     return self.json(200, [{"id": r["customer_id"], "name": r["display_name"], "persona": r["persona"]}
                                            for r in q("SELECT * FROM identity WHERE customer_id < 100 ORDER BY customer_id")])
+                if path == "/api/scenarios":
+                    return self.json(200, [{"id": k, "label": v["label"], "blurb": v["blurb"], "needs_goal": v["needs_goal"]}
+                                           for k, v in seed.SCENARIOS.items()])
                 if path == "/api/engine":
                     return self.json(200, engine_view())
                 if m := CUSTOMER_PATH.match(path):
@@ -485,7 +627,7 @@ class Handler(BaseHTTPRequestHandler):
         try:
             body = self.body()
             if path == "/api/reset-demo":
-                if not allow("reset:" + self.ip(), 10, 600):
+                if not (allow("reset:" + self.ip(), 10, 600) and allow("reset:all", 30, 3600)):
                     return self.json(429, {"error": "too many resets, try again in a few minutes"})
                 with lock:
                     return self.json(200, reset_demo())
@@ -496,6 +638,11 @@ class Handler(BaseHTTPRequestHandler):
                     raise ValueError("text is required")
                 with lock:
                     return self.json(200, add_situation(body["text"]))
+            if path == "/api/try":
+                if not (allow("try:" + self.ip(), 20, 600) and allow("try:all", 500, 3600)):
+                    return self.json(429, {"error": "too many tries, please wait a few minutes"})
+                with lock:
+                    return self.json(200, new_try())
             m = CUSTOMER_PATH.match(path)
             if not m:
                 return self.json(404, {"error": "not found"})
@@ -505,11 +652,13 @@ class Handler(BaseHTTPRequestHandler):
                     return self.json(404, {"error": "not found"})
                 if action == "onboarding":
                     if not (allow("onb:" + self.ip(), 30, 600) and allow("onb:all", 300, 3600)):
-                        return self.json(429, {"error": "busy, use the destination chips instead"})
-                    return self.json(200, onboarding.turn(chat(body), summary(cid), live=True))
+                        return self.json(429, {"error": "busy, use the suggestions instead"})
+                    draft = validate_goals(body.get("goals") or [])
+                    return self.json(200, onboarding.turn(chat(body), summary(cid), True, draft))
                 handlers = {"respond": lambda: respond(cid, body), "goals": lambda: save_goals(cid, body.get("goals")),
+                            "add-goal": lambda: add_goal(cid, body.get("goal")),
                             "settings": lambda: settings(cid, body), "reset-memory": lambda: reset_memory(cid),
-                            "revoke-rule": lambda: revoke_rule(cid, int(rid or 0))}
+                            "revoke-rule": lambda: revoke_rule(cid, int(rid or 0)), "scenario": lambda: scenario(cid, body)}
                 if action not in handlers:
                     return self.json(404, {"error": "not found"})
                 return self.json(200, handlers[action]())

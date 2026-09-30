@@ -115,7 +115,7 @@ Prefer a quiet border or subtle shadow. Avoid heavy drop shadows, floating glass
 - Home header: 32px avatar, flexible Kate search/help pill, then a notification control. Make their interactive hit areas at least 44px.
 - Kate pill copy: “Hoe kan ik je helpen?” Use a small assistant symbol or supplied Kate asset.
 - Account cards may scroll horizontally. Leave part of the next card visible and provide an accessible way to navigate the list.
-- Keep Start, Mijn KBC, Beleggen, and Aanbod in a stable bottom bar. Use a 24px icon plus a short label, a minimum 56px bar, and bottom safe-area padding.
+- Keep Start, Mijn KBC, Beleggen, and Autopilot in a stable bottom bar (in this prototype Autopilot takes the place of Aanbod, so there are still four). Use a 24px icon plus a short label, a minimum 56px bar, and bottom safe-area padding.
 - Show the selected destination with navy text and a filled icon or clear indicator; use muted icons for inactive destinations.
 - On detail screens use a back control, clear title, and relevant actions. Avoid repeating the entire home header.
 - Add enough bottom padding that content and primary actions remain visible above fixed navigation and the keyboard.

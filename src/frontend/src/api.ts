@@ -40,6 +40,19 @@ export type Goal = {
   on_course: boolean;
   reached: boolean;
   monthly: number;
+  priority: number;
+};
+
+export type Suggestion = {
+  key: string;
+  title: string;
+  type: string;
+  horizon: "now" | "long";
+  target_eur: number;
+  deadline: string;
+  reason: string;
+  evidence: string[];
+  source: "life" | "circle" | "both";
 };
 
 export type Customer = {
@@ -61,7 +74,20 @@ export type Customer = {
   rules: { id: number; goal: string; keep: number; cap: number; next_run: string; preview: number }[];
   memory: string[];
   log: { day: string; text: string }[];
+  is_try: boolean;
+  suggestions: Suggestion[];
+  pipeline?: Step[];
 };
+
+export type Step = {
+  key: "signals" | "understood" | "candidates" | "ai_check" | "score" | "controls" | "decision";
+  title: string;
+  summary: string;
+  items: { label: string; value: string; tone: "ok" | "no" | "info" }[];
+};
+
+export type Scenario = { id: string; label: string; blurb: string; needs_goal: boolean };
+export type Notification = { title: string; body: string };
 
 export type Result = { type: string; lines: string[]; advisor?: string | null };
 
@@ -73,6 +99,7 @@ export type DraftGoal = {
   deadline: string;
   priority: number;
   monthly_eur?: number;
+  pace_eur?: number;   // the engine's computed pace when monthly_eur is 0 (onboarding replies only)
   eta?: string | null;
   on_course?: boolean;
 };
@@ -117,10 +144,15 @@ export const api = {
     call<Customer>(`/customers/${id}/settings`, body),
   resetMemory: (id: number) => call<Customer>(`/customers/${id}/reset-memory`, {}),
   revokeRule: (id: number, rule: number) => call<Customer>(`/customers/${id}/revoke-rule/${rule}`, {}),
-  onboarding: (id: number, history: { role: "user" | "assistant"; content: string }[]) =>
-    call<OnboardingTurn>(`/customers/${id}/onboarding`, { history }),
+  onboarding: (id: number, history: { role: "user" | "assistant"; content: string }[], goals: DraftGoal[]) =>
+    call<OnboardingTurn>(`/customers/${id}/onboarding`, { history, goals }),
   saveGoals: (id: number, goals: DraftGoal[]) => call<Customer>(`/customers/${id}/goals`, { goals }),
+  addGoal: (id: number, goal: DraftGoal) => call<Customer>(`/customers/${id}/add-goal`, { goal }),
   engine: () => call<Engine>("/engine"),
   addSituation: (text: string) => call<Screened>("/situations", { text }),
+  scenarios: () => call<Scenario[]>("/scenarios"),
+  try: () => call<Customer>("/try", {}),
+  scenario: (id: number, sid: string) =>
+    call<{ view: Customer; notification: Notification | null }>(`/customers/${id}/scenario`, { id: sid }),
   resetDemo: () => call<{ ok: boolean }>("/reset-demo", {}),
 };
